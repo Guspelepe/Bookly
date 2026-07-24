@@ -5,13 +5,14 @@
 window.db = new Dexie('BibliotecaDB');
 
 // ===== VERSÃO 8 – adiciona campo capa nos livros =====
-db.version(8).stores({
+db.version(10).stores({
     clientes: '++id, cpf, nome, apelido, foto, livros_lidos, media_estrelas, lendo_agora, bio, nascimento',
     alugueis: '++id, cliente_id, status, livro, dias_atraso, multa',
-    livros: '++id, titulo, genero, capa', // <-- ADICIONE 'capa'
+    livros: '++id, titulo, genero, capa',
     solicitacoes: '++id, usuario_id, titulo, autor, editora, comentario, data, status, resposta',
     avaliacoes: '++id, livro, usuario_id, nota, comentario, data',
-    frases: '++id, texto, autor'
+    frases: '++id, texto, autor',
+    logs: '++id, tipo, cliente_id, cliente_nome, livro, data, bibliotecario'
 });
 
 // ==========================================

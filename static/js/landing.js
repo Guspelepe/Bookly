@@ -199,9 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Backdoor Administrativo estruturado
         if (identificador === 'ACESSORESTRITO' && senha === '1234') {
-            sessionStorage.setItem('logado', 'true');
-            sessionStorage.setItem('perfil', 'bibliotecario');
-            sessionStorage.setItem('usuario', 'Bibliotecário');
             window.location.href = 'admin.html';
             return;
         }
