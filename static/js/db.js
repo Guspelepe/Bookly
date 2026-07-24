@@ -5,14 +5,16 @@
 window.db = new Dexie('BibliotecaDB');
 
 // ===== VERSÃO 8 – adiciona campo capa nos livros =====
-db.version(10).stores({
+db.version(11).stores({
     clientes: '++id, cpf, nome, apelido, foto, livros_lidos, media_estrelas, lendo_agora, bio, nascimento',
     alugueis: '++id, cliente_id, status, livro, dias_atraso, multa',
     livros: '++id, titulo, genero, capa',
     solicitacoes: '++id, usuario_id, titulo, autor, editora, comentario, data, status, resposta',
     avaliacoes: '++id, livro, usuario_id, nota, comentario, data',
     frases: '++id, texto, autor',
-    logs: '++id, tipo, cliente_id, cliente_nome, livro, data, bibliotecario'
+    logs: '++id, tipo, cliente_id, cliente_nome, livro, data, bibliotecario',
+    solicitacoes_aluguel: '++id, tipo, cliente_id, cliente_nome, livro, data_solicitacao, data_locacao, data_devolucao_prevista, status, bibliotecario, multa_calculada, resposta',
+    notificacoes: '++id, usuario_id, mensagem, lida, data_criacao, tipo'
 });
 
 // ==========================================
@@ -413,8 +415,9 @@ db.on('ready', async () => {
             console.warn(`📚 ${LIVROS_INICIAIS.length} livros inicializados.`);
         } else {
             console.warn(`📚 Já existem ${countLivros} livros.`);
-            await migrarLivros();       // atualiza campos dos existentes
-            await sincronizarLivros();  // adiciona novos e remove os que saíram (com segurança)
+            await migrarLivros();
+            await sincronizarLivros();
+            await migrarCapa();  // <-- garante o campo capa
         }
 
         // 2. Cliente padrão
@@ -454,16 +457,4 @@ db.on('ready', async () => {
     } catch (err) {
         console.error('❌ Erro na inicialização:', err);
     }
-
-    // 1. Livros
-        const countLivros = await db.livros.count();
-        if (countLivros === 0) {
-            await db.livros.bulkAdd(LIVROS_INICIAIS);
-            console.warn(`📚 ${LIVROS_INICIAIS.length} livros inicializados.`);
-        } else {
-            console.warn(`📚 Já existem ${countLivros} livros.`);
-            await migrarLivros();
-            await sincronizarLivros();
-            await migrarCapa(); // <-- ADICIONE AQUI
-        }
 });

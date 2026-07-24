@@ -1,5 +1,5 @@
 // ============================================================
-// user-app.js – Painel do usuário (SaaS-style, sem onclick inline)
+// user-app.js – Painel do usuário (com aluguel integrado à biblioteca)
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,12 +54,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
+    // FUNÇÃO PARA CRIAR NOTIFICAÇÃO (para o próprio usuário)
+    // ================================================================
+    async function criarNotificacao(mensagem, tipo = 'sistema') {
+        try {
+            await aguardarBanco();
+            await db.notificacoes.add({
+                usuario_id: usuarioId,
+                mensagem: mensagem,
+                lida: false,
+                data_criacao: new Date().toISOString(),
+                tipo: tipo
+            });
+        } catch (err) {
+            console.error('Erro ao criar notificação:', err);
+        }
+    }
+
+    // ================================================================
+    // FUNÇÃO PARA BUSCAR NOTIFICAÇÕES NÃO LIDAS
+    // ================================================================
+    async function buscarNotificacoesNaoLidas() {
+        try {
+            await aguardarBanco();
+            return await db.notificacoes
+                .where('usuario_id').equals(usuarioId)
+                .and(n => n.lida === false)
+                .toArray();
+        } catch (err) {
+            console.error('Erro ao buscar notificações:', err);
+            return [];
+        }
+    }
+
+    async function buscarTodasNotificacoes() {
+        try {
+            await aguardarBanco();
+            return await db.notificacoes
+                .where('usuario_id').equals(usuarioId)
+                .reverse()
+                .sortBy('data_criacao');
+        } catch (err) {
+            console.error('Erro ao buscar notificações:', err);
+            return [];
+        }
+    }
+
+    // ================================================================
+    // FUNÇÃO PARA ATUALIZAR O CONTADOR DE NOTIFICAÇÕES
+    // ================================================================
+    async function atualizarContadorNotificacoes() {
+        const notificacoes = await buscarNotificacoesNaoLidas();
+        const badge = document.getElementById('badge-notificacoes');
+        if (badge) {
+            const count = notificacoes.length;
+            badge.textContent = count > 0 ? count : '';
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+    }
+
+    // ================================================================
     // FUNÇÃO AUXILIAR PARA GERAR CARD DE LIVRO
     // ================================================================
     function gerarCardLivro(livro, disponivel) {
         const statusClass = disponivel ? 'status-disponivel' : 'status-alugado';
         const statusTexto = disponivel ? 'Disponível' : 'Alugado';
-        // Se tiver capa personalizada, usa ela; senão, usa o padrão
         const capa = livro.capa || `static/src/${encodeURIComponent(livro.titulo)}.jpg`;
         return `
         <div class="livro-card" data-titulo="${livro.titulo}" style="cursor:pointer;">
@@ -75,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // FUNÇÃO RENDERIZAR ABA (agora global)
+    // FUNÇÃO RENDERIZAR ABA (página inicial)
     // ================================================================
     async function renderizarAba(tipo) {
         const container = document.getElementById('grade-destaques');
@@ -142,16 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = html;
 
-        // Adiciona listeners para abrir detalhes
         container.querySelectorAll('.livro-card[data-titulo]').forEach(card => {
             card.addEventListener('click', () => abrirLivro(card.dataset.titulo));
         });
     }
 
     // ================================================================
-    // ATUALIZAÇÃO AUTOMÁTICA (com controle de intervalo)
+    // ATUALIZAÇÃO AUTOMÁTICA
     // ================================================================
     let intervaloAtualizacao = null;
+    let intervaloNotificacoes = null;
 
     function iniciarAtualizacaoAutomatica() {
         if (intervaloAtualizacao) clearInterval(intervaloAtualizacao);
@@ -163,12 +222,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('🔄 Aba atualizada automaticamente.');
             }
         }, 30000);
+
+        if (intervaloNotificacoes) clearInterval(intervaloNotificacoes);
+        intervaloNotificacoes = setInterval(async () => {
+            await atualizarContadorNotificacoes();
+            const sectionAtiva = document.querySelector('.menu-user a.active');
+            if (sectionAtiva && sectionAtiva.dataset.section === 'notificacoes') {
+                renderNotificacoes();
+            }
+        }, 15000);
     }
 
     function pararAtualizacaoAutomatica() {
         if (intervaloAtualizacao) {
             clearInterval(intervaloAtualizacao);
             intervaloAtualizacao = null;
+        }
+        if (intervaloNotificacoes) {
+            clearInterval(intervaloNotificacoes);
+            intervaloNotificacoes = null;
         }
     }
 
@@ -258,10 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             botoesFiltro.forEach(btn => btn.addEventListener('click', () => setAba(btn.dataset.tipo)));
             await setAba('top_livros');
 
-            // Inicia a atualização automática
             iniciarAtualizacaoAutomatica();
 
-            // Listener do formulário de avaliação
             document.getElementById('form-avaliacao-inicio').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const livro = document.getElementById('avaliacao-livro-inicio').value.trim();
@@ -290,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: BIBLIOTECA (usando gerarCardLivro)
+    // SEÇÃO: BIBLIOTECA (COM PESQUISA E ALUGUEL INTEGRADO)
     // ================================================================
     async function renderBiblioteca() {
         try {
@@ -299,19 +369,73 @@ document.addEventListener('DOMContentLoaded', () => {
             const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
             const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
 
-            let html = '<div class="card-user"><h3>📚 Todos os Livros</h3><div class="grade-livros">';
-            livros.forEach(livro => {
-                const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
-                const disponivel = !alugadosSet.has(tituloSimples);
-                html += gerarCardLivro(livro, disponivel);
-            });
-            html += '</div></div>';
+            // Ordena por título
+            livros.sort((a, b) => a.titulo.localeCompare(b.titulo));
+
+            let html = `
+                <div class="card-user">
+                    <h3>📚 Todos os Livros</h3>
+                    <div style="display:flex; gap:8px; margin-bottom:16px;">
+                        <input type="text" id="pesquisa-biblioteca" placeholder="🔍 Pesquisar livro..." style="flex:1; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--bg-card); color:var(--text-primary);">
+                        <button id="btn-limpar-pesquisa-biblioteca" style="padding:8px 16px; background:#e74c3c; color:#fff; border:none; border-radius:6px; cursor:pointer;">✕</button>
+                    </div>
+                    <div id="grade-biblioteca" class="grade-livros">
+                        <!-- Os livros serão renderizados aqui -->
+                    </div>
+                </div>
+            `;
+
             contentUser.innerHTML = html;
 
-            // Adiciona listeners para abrir detalhes
-            document.querySelectorAll('.livro-card[data-titulo]').forEach(card => {
-                card.addEventListener('click', () => abrirLivro(card.dataset.titulo));
+            // Função para renderizar os cards com filtro
+            function renderizarLivros(lista) {
+                const container = document.getElementById('grade-biblioteca');
+                if (!container) return;
+                if (lista.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding:20px;">Nenhum livro encontrado.</p>';
+                    return;
+                }
+                let cards = '';
+                lista.forEach(livro => {
+                    const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
+                    const disponivel = !alugadosSet.has(tituloSimples);
+                    cards += gerarCardLivro(livro, disponivel);
+                });
+                container.innerHTML = cards;
+
+                // Adiciona listener para abrir detalhes
+                container.querySelectorAll('.livro-card[data-titulo]').forEach(card => {
+                    card.addEventListener('click', () => abrirLivro(card.dataset.titulo));
+                });
+            }
+
+            // Renderiza todos
+            renderizarLivros(livros);
+
+            // Lógica de pesquisa
+            const inputPesquisa = document.getElementById('pesquisa-biblioteca');
+            const btnLimpar = document.getElementById('btn-limpar-pesquisa-biblioteca');
+
+            inputPesquisa.addEventListener('input', function() {
+                const termo = this.value.trim().toLowerCase();
+                if (termo === '') {
+                    renderizarLivros(livros);
+                    return;
+                }
+                const filtrados = livros.filter(l => 
+                    l.titulo.toLowerCase().includes(termo) ||
+                    l.autor.toLowerCase().includes(termo) ||
+                    (l.genero && l.genero.toLowerCase().includes(termo))
+                );
+                renderizarLivros(filtrados);
             });
+
+            btnLimpar.addEventListener('click', () => {
+                inputPesquisa.value = '';
+                renderizarLivros(livros);
+                inputPesquisa.focus();
+            });
+
         } catch (err) {
             console.error('Erro ao renderizar biblioteca:', err);
             contentUser.innerHTML = '<p>⚠️ Erro ao carregar a biblioteca.</p>';
@@ -319,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: MEUS LIVROS (mesmo código)
+    // SEÇÃO: MEUS LIVROS
     // ================================================================
     async function renderMeusLivros() {
         try {
@@ -371,13 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
             html += '</tbody></table></div>';
             contentUser.innerHTML = html;
 
-            // Adiciona botões de ação
+            // Botões de ação (renovar e devolver - que agora viram solicitações)
             document.querySelectorAll('tr[data-id]').forEach(row => {
                 const aluguelId = parseInt(row.dataset.id);
                 const acoesCell = row.querySelector('.acoes-cell');
                 if (acoesCell) {
                     const aluguel = alugueis.find(a => a.id === aluguelId);
                     if (aluguel && aluguel.status === 'ativo') {
+                        // Renovar continua direto (sem aprovação)
                         const btnRenovar = document.createElement('button');
                         btnRenovar.className = 'btn-user';
                         btnRenovar.textContent = '🔄 Renovar';
@@ -385,14 +510,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         btnRenovar.style.fontSize = '0.8rem';
                         btnRenovar.addEventListener('click', () => renovarAluguel(aluguelId));
 
+                        // Devolver agora vira solicitação
                         const btnDevolver = document.createElement('button');
                         btnDevolver.className = 'btn-user';
-                        btnDevolver.textContent = '📦 Devolver';
+                        btnDevolver.textContent = '📦 Solicitar Devolução';
                         btnDevolver.style.padding = '4px 12px';
                         btnDevolver.style.fontSize = '0.8rem';
-                        btnDevolver.style.background = '#e74c3c';
+                        btnDevolver.style.background = '#f39c12';
                         btnDevolver.style.marginLeft = '4px';
-                        btnDevolver.addEventListener('click', () => devolverAluguel(aluguelId));
+                        btnDevolver.addEventListener('click', () => solicitarDevolucao(aluguelId));
 
                         acoesCell.appendChild(btnRenovar);
                         acoesCell.appendChild(btnDevolver);
@@ -409,7 +535,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: PERFIL (VISUALIZAÇÃO) – MANTIDO
+    // FUNÇÃO PARA SOLICITAR DEVOLUÇÃO
+    // ================================================================
+    window.solicitarDevolucao = async function(aluguelId) {
+        try {
+            await aguardarBanco();
+            const aluguel = await db.alugueis.get(aluguelId);
+            if (!aluguel || aluguel.status !== 'ativo') {
+                notificar('Este aluguel não está ativo.', 'erro');
+                return;
+            }
+
+            // Verifica se já existe uma solicitação pendente para este aluguel
+            const solicitacaoExistente = await db.solicitacoes_aluguel
+                .where('cliente_id').equals(usuarioId)
+                .and(s => s.livro === aluguel.livro && s.tipo === 'devolucao' && s.status === 'pendente')
+                .first();
+
+            if (solicitacaoExistente) {
+                notificar('Você já tem uma solicitação de devolução pendente para este livro.', 'erro');
+                return;
+            }
+
+            // Calcula multa (se houver)
+            const hoje = new Date().toISOString().split('T')[0];
+            let diasAtraso = 0, multa = 0;
+            const dataPrevista = parseData(aluguel.data_devolucao_prevista);
+            const dataReal = new Date(hoje + 'T00:00:00');
+            if (dataPrevista && dataReal > dataPrevista) {
+                const diffMs = dataReal - dataPrevista;
+                diasAtraso = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                multa = diasAtraso * MULTA_POR_DIA;
+            }
+
+            // Mostra mensagem com multa (se houver)
+            let confirmar = true;
+            if (multa > 0) {
+                confirmar = confirm(`⚠️ Atenção! Esta devolução está com ${diasAtraso} dia(s) de atraso. Multa de R$ ${multa.toFixed(2)}. Deseja continuar?`);
+            } else {
+                confirmar = confirm('Confirma a solicitação de devolução do livro "' + aluguel.livro + '"?');
+            }
+
+            if (!confirmar) {
+                notificar('Solicitação cancelada.', 'aviso');
+                return;
+            }
+
+            // Cria a solicitação
+            await db.solicitacoes_aluguel.add({
+                tipo: 'devolucao',
+                cliente_id: usuarioId,
+                cliente_nome: usuarioAtual.nome,
+                livro: aluguel.livro,
+                data_solicitacao: new Date().toISOString(),
+                data_locacao: aluguel.data_locacao,
+                data_devolucao_prevista: aluguel.data_devolucao_prevista,
+                status: 'pendente',
+                multa_calculada: multa,
+                bibliotecario: null,
+                resposta: null
+            });
+
+            // Cria notificação para o próprio usuário (informando que foi enviado)
+            await criarNotificacao(
+                `📤 Você solicitou a devolução do livro "${aluguel.livro}". Aguarde a confirmação do bibliotecário.`,
+                'devolucao'
+            );
+
+            notificar('Solicitação de devolução enviada com sucesso! Acompanhe em Notificações.');
+            renderMeusLivros();
+
+        } catch (err) {
+            console.error('Erro ao solicitar devolução:', err);
+            notificar('Erro ao enviar solicitação.', 'erro');
+        }
+    };
+
+    // ================================================================
+    // SEÇÃO: PERFIL (visualização)
     // ================================================================
     async function renderPerfil() {
         try {
@@ -464,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: EDITAR PERFIL – MANTIDO
+    // SEÇÃO: EDITAR PERFIL
     // ================================================================
     async function renderEditarPerfil() {
         try {
@@ -557,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: SOLICITAR LIVROS – MANTIDO
+    // SEÇÃO: SOLICITAR LIVROS (sugestões de novos títulos)
     // ================================================================
     async function renderSolicitarLivros() {
         try {
@@ -663,135 +866,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: ALUGAR LIVRO (USUÁRIO) – MANTIDO
+    // SEÇÃO: NOTIFICAÇÕES
     // ================================================================
-    async function renderAlugarUsuario() {
+    async function renderNotificacoes() {
         try {
             await aguardarBanco();
+            const notificacoes = await buscarTodasNotificacoes();
 
-            const aluguelAtivoUsuario = await db.alugueis
-                .where('cliente_id').equals(usuarioId)
-                .filter(a => a.status === 'ativo')
-                .first();
+            let html = `<div class="card-user"><h3>📬 Minhas Notificações</h3>`;
 
-            if (aluguelAtivoUsuario) {
-                contentUser.innerHTML = `
-                    <div class="card-user" style="text-align:center; padding:40px;">
-                        <h3>📚 Alugar Livro</h3>
-                        <p style="color: var(--text-secondary); margin: 20px 0;">
-                            Você já possui o livro <strong>"${aluguelAtivoUsuario.livro}"</strong> alugado.
-                        </p>
-                        <p style="color: var(--text-secondary);">
-                            Devolva-o antes de alugar um novo título.
-                        </p>
-                        <button id="btn-ir-meus-livros" class="btn-user" style="margin-top:16px;">
-                            📖 Ir para Meus Livros
-                        </button>
+            if (notificacoes.length === 0) {
+                html += `<p style="color: var(--text-secondary);">Você não tem notificações.</p>`;
+            } else {
+                // Marca todas como lidas ao abrir
+                for (const n of notificacoes) {
+                    if (!n.lida) {
+                        await db.notificacoes.update(n.id, { lida: true });
+                    }
+                }
+                await atualizarContadorNotificacoes();
+
+                html += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
+                notificacoes.forEach(n => {
+                    const data = new Date(n.data_criacao);
+                    const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                    const corBorda = n.tipo === 'aluguel' ? '#2ecc71' : n.tipo === 'devolucao' ? '#3498db' : '#f39c12';
+                    html += `
+                    <div style="background: var(--bg-sidebar); padding: 14px 18px; border-radius: 8px; border-left: 4px solid ${corBorda};">
+                        <p style="margin: 0; color: var(--text-primary);">${n.mensagem}</p>
+                        <small style="color: var(--text-secondary);">${dataStr}</small>
                     </div>
-                `;
-                document.getElementById('btn-ir-meus-livros').addEventListener('click', () => {
-                    const linkMeusLivros = document.querySelector('a[data-section="meus-livros"]');
-                    if (linkMeusLivros) linkMeusLivros.click();
-                    else renderMeusLivros();
+                    `;
                 });
-                return;
+                html += `</div>`;
             }
+            html += `</div>`;
 
-            const livros = await db.livros.toArray();
-            const alugueisAtivos = await db.alugueis.where('status').equals('ativo').toArray();
-            const titulosAlugados = new Set(alugueisAtivos.map(a => a.livro));
-            const livrosDisponiveis = livros.filter(l => !titulosAlugados.has(l.titulo));
-
-            if (livrosDisponiveis.length === 0) {
-                contentUser.innerHTML = `
-                    <div class="card-user" style="text-align:center; padding:40px;">
-                        <h3>📚 Alugar Livro</h3>
-                        <p style="color: var(--text-secondary); margin-top:20px;">
-                            Nenhum livro disponível no momento.
-                        </p>
-                        <p style="color: var(--text-secondary);">
-                            Volte mais tarde ou solicite novos títulos.
-                        </p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `
-                <div class="card-user">
-                    <h3>📚 Alugar Livro</h3>
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                        Escolha um dos livros disponíveis e confirme o aluguel.
-                    </p>
-                    <form id="form-alugar-usuario" class="form-user" style="max-width: 100%;">
-                        <div class="full-width">
-                            <label for="livro-alugar-usuario">Livro disponível</label>
-                            <select id="livro-alugar-usuario" required style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
-                                <option value="">Selecione um livro...</option>
-            `;
-            livrosDisponiveis.forEach(l => {
-                html += `<option value="${l.titulo}">${l.titulo}</option>`;
-            });
-            html += `
-                            </select>
-                        </div>
-                        <div class="full-width">
-                            <p style="color: var(--text-secondary); font-size: 0.85rem;">
-                                📅 Data de locação: <strong>${new Date().toLocaleDateString('pt-BR')}</strong><br>
-                                📅 Devolução prevista: <strong>${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}</strong> (7 dias)
-                            </p>
-                        </div>
-                        <div class="full-width">
-                            <button type="submit" class="btn-user">Confirmar Aluguel</button>
-                        </div>
-                    </form>
-                </div>
-            `;
             contentUser.innerHTML = html;
-
-            document.getElementById('form-alugar-usuario').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const livroTitulo = document.getElementById('livro-alugar-usuario').value;
-                if (!livroTitulo) {
-                    notificar('Selecione um livro.', 'erro');
-                    return;
-                }
-
-                const livroJaAlugado = await db.alugueis
-                    .where('livro').equals(livroTitulo)
-                    .filter(a => a.status === 'ativo')
-                    .first();
-
-                if (livroJaAlugado) {
-                    notificar('Este livro acabou de ser alugado por outro usuário. Escolha outro.', 'erro');
-                    renderAlugarUsuario();
-                    return;
-                }
-
-                const hoje = new Date().toISOString().split('T')[0];
-                const devolucaoPrevista = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-                await db.alugueis.add({
-                    cliente_id: usuarioId,
-                    livro: livroTitulo,
-                    data_locacao: hoje,
-                    data_devolucao_prevista: devolucaoPrevista,
-                    status: 'ativo'
-                });
-
-                notificar(`Livro "${livroTitulo}" alugado com sucesso!`);
-                const linkMeusLivros = document.querySelector('a[data-section="meus-livros"]');
-                if (linkMeusLivros) linkMeusLivros.click();
-                else renderMeusLivros();
-            });
         } catch (err) {
-            console.error('Erro ao renderizar aluguel:', err);
-            contentUser.innerHTML = '<p>⚠️ Erro ao carregar a seção de aluguel.</p>';
+            console.error('Erro ao renderizar notificações:', err);
+            contentUser.innerHTML = '<p>⚠️ Erro ao carregar notificações.</p>';
         }
     }
 
     // ================================================================
-    // FUNÇÕES GLOBAIS
+    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + BOTÃO ALUGAR)
     // ================================================================
     window.abrirLivro = async (titulo) => {
         try {
@@ -802,11 +921,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Verifica se está disponível
+            const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
+            const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
+            const disponivel = !ativos.some(a => a.livro.split(' - ')[0].trim().toLowerCase() === tituloSimples);
+
             // Remove modal anterior se existir
             const existente = document.getElementById('modal-detalhes-livro');
             if (existente) existente.remove();
 
-            // ===== CAPA: usa a personalizada (se existir) ou o fallback padrão =====
             const capaUrl = livro.capa || `static/src/${encodeURIComponent(livro.titulo)}.jpg`;
 
             const modal = document.createElement('div');
@@ -866,10 +989,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Editora:</strong> ${livro.editora} (${livro.ano})</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Gênero:</strong> ${livro.genero || 'Não informado'}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Classificação:</strong> ${livro.classificacao || 'Livre'}</p>
+                            <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Status:</strong> <span style="color: ${disponivel ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${disponivel ? 'Disponível' : 'Indisponível'}</span></p>
                             <hr style="border-color: var(--border-color, #2a2a3a); margin: 12px 0;">
                             <p style="margin: 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;">
                                 <strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}
                             </p>
+                            ${disponivel ? `
+                                <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">
+                                    📚 Alugar este livro
+                                </button>
+                            ` : `
+                                <p style="margin-top: 16px; color: #e74c3c; text-align:center;">Este livro não está disponível no momento.</p>
+                            `}
                         </div>
                     </div>
                 </div>
@@ -877,12 +1008,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.body.appendChild(modal);
 
-            // Fecha o modal ao clicar fora do conteúdo
+            // Fecha o modal ao clicar fora
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) modal.remove();
             });
 
-            // Adiciona a animação de fade (caso não exista no CSS)
+            // Adiciona animação fade (se não existir)
             if (!document.getElementById('style-modal-fade')) {
                 const style = document.createElement('style');
                 style.id = 'style-modal-fade';
@@ -895,12 +1026,191 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.head.appendChild(style);
             }
 
+            // Listener do botão "Alugar este livro"
+            const btnAlugar = document.getElementById('btn-alugar-deste-livro');
+            if (btnAlugar) {
+                btnAlugar.addEventListener('click', () => {
+                    modal.remove(); // fecha o modal de detalhes
+                    abrirModalConfirmarAluguel(livro.titulo);
+                });
+            }
+
         } catch (err) {
             console.error('Erro ao abrir detalhes do livro:', err);
             notificar('Erro ao carregar detalhes do livro.', 'erro');
         }
     };
 
+    // ================================================================
+    // FUNÇÃO: ABRIR MODAL DE CONFIRMAÇÃO DE ALUGUEL
+    // ================================================================
+    window.abrirModalConfirmarAluguel = async function(livroTitulo) {
+        try {
+            // Verifica se o livro ainda está disponível (evita conflito)
+            await aguardarBanco();
+            const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
+            const tituloSimples = livroTitulo.split(' - ')[0].trim().toLowerCase();
+            const disponivel = !ativos.some(a => a.livro.split(' - ')[0].trim().toLowerCase() === tituloSimples);
+
+            if (!disponivel) {
+                notificar('Este livro não está mais disponível.', 'erro');
+                return;
+            }
+
+            // Verifica se o usuário já tem um aluguel ativo
+            const aluguelAtivo = await db.alugueis
+                .where('cliente_id').equals(usuarioId)
+                .filter(a => a.status === 'ativo')
+                .first();
+
+            if (aluguelAtivo) {
+                notificar('Você já possui um livro alugado. Devolva-o antes de solicitar outro.', 'erro');
+                return;
+            }
+
+            // Verifica se já existe uma solicitação pendente para este livro
+            const solicitacaoExistente = await db.solicitacoes_aluguel
+                .where('cliente_id').equals(usuarioId)
+                .and(s => s.livro === livroTitulo && s.tipo === 'aluguel' && s.status === 'pendente')
+                .first();
+
+            if (solicitacaoExistente) {
+                notificar('Você já tem uma solicitação de aluguel pendente para este livro.', 'erro');
+                return;
+            }
+
+            // Datas
+            const hoje = new Date();
+            const hojeStr = hoje.toISOString().split('T')[0];
+            const devolucaoPrevista = new Date(hoje);
+            devolucaoPrevista.setDate(devolucaoPrevista.getDate() + 7);
+            const devolucaoStr = devolucaoPrevista.toISOString().split('T')[0];
+
+            // Remove modal anterior se existir
+            const existente = document.getElementById('modal-confirmar-aluguel');
+            if (existente) existente.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'modal-confirmar-aluguel';
+            modal.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(6px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 20px;
+                animation: fadeIn 0.3s ease;
+            `;
+
+            modal.innerHTML = `
+                <div style="
+                    background: var(--bg-card, #16213e);
+                    color: var(--text-primary, #fff);
+                    border-radius: 16px;
+                    max-width: 480px;
+                    width: 100%;
+                    padding: 28px 32px;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+                    border: 1px solid var(--border-color, #2a2a3a);
+                    position: relative;
+                ">
+                    <button onclick="this.closest('#modal-confirmar-aluguel').remove()" style="
+                        position: absolute;
+                        top: 12px;
+                        right: 16px;
+                        background: none;
+                        border: none;
+                        font-size: 28px;
+                        cursor: pointer;
+                        color: var(--text-secondary, #b0b0b0);
+                        transition: color 0.2s;
+                    ">&times;</button>
+
+                    <h3 style="margin: 0 0 8px 0;">📚 Confirmar Aluguel</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Confirme os dados para solicitar o aluguel do livro:</p>
+
+                    <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                        <p><strong>Livro:</strong> ${livroTitulo}</p>
+                        <p><strong>Data de locação:</strong> ${new Date(hojeStr).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Devolução prevista:</strong> ${new Date(devolucaoStr).toLocaleDateString('pt-BR')} (7 dias)</p>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button id="btn-cancelar-aluguel" style="flex:1; padding: 10px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancelar</button>
+                        <button id="btn-confirmar-aluguel" style="flex:2; padding: 10px; background: #2ecc71; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Solicitar Aluguel</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Fechar ao clicar fora
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+
+            // Botão cancelar
+            document.getElementById('btn-cancelar-aluguel').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            // Botão confirmar
+            document.getElementById('btn-confirmar-aluguel').addEventListener('click', async () => {
+                try {
+                    // Verifica novamente disponibilidade
+                    const ativosNovos = await db.alugueis.where({ status: 'ativo' }).toArray();
+                    const disp = !ativosNovos.some(a => a.livro.split(' - ')[0].trim().toLowerCase() === tituloSimples);
+                    if (!disp) {
+                        notificar('Este livro não está mais disponível.', 'erro');
+                        modal.remove();
+                        return;
+                    }
+
+                    // Cria a solicitação
+                    await db.solicitacoes_aluguel.add({
+                        tipo: 'aluguel',
+                        cliente_id: usuarioId,
+                        cliente_nome: usuarioAtual.nome,
+                        livro: livroTitulo,
+                        data_solicitacao: new Date().toISOString(),
+                        data_locacao: hojeStr,
+                        data_devolucao_prevista: devolucaoStr,
+                        status: 'pendente',
+                        multa_calculada: null,
+                        bibliotecario: null,
+                        resposta: null
+                    });
+
+                    // Notifica o usuário
+                    await criarNotificacao(
+                        `📤 Você solicitou o aluguel do livro "${livroTitulo}". Aguarde a confirmação do bibliotecário.`,
+                        'aluguel'
+                    );
+
+                    notificar('Solicitação de aluguel enviada com sucesso! Acompanhe em Notificações.');
+                    modal.remove();
+
+                    // Recarrega a biblioteca para atualizar status
+                    renderBiblioteca();
+
+                } catch (err) {
+                    console.error('Erro ao enviar solicitação:', err);
+                    notificar('Erro ao enviar solicitação.', 'erro');
+                }
+            });
+
+        } catch (err) {
+            console.error('Erro ao abrir modal de confirmação:', err);
+            notificar('Erro ao processar solicitação.', 'erro');
+        }
+    };
+
+    // ================================================================
+    // FUNÇÕES: RENOVAR (direto) e DEVOLVER (agora via solicitação)
+    // ================================================================
     window.renovarAluguel = async (aluguelId) => {
         try {
             await aguardarBanco();
@@ -926,63 +1236,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.devolverAluguel = async (aluguelId) => {
-        try {
-            await aguardarBanco();
-            const aluguel = await db.alugueis.get(aluguelId);
-            if (!aluguel || aluguel.status !== 'ativo') {
-                notificar('Este aluguel não está ativo.', 'erro');
-                return;
-            }
-
-            const hoje = new Date().toISOString().split('T')[0];
-            let diasAtraso = 0, multa = 0;
-            const dataPrevista = parseData(aluguel.data_devolucao_prevista);
-            const dataReal = new Date(hoje + 'T00:00:00');
-
-            if (dataPrevista && dataReal > dataPrevista) {
-                const diffMs = dataReal - dataPrevista;
-                diasAtraso = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                multa = diasAtraso * MULTA_POR_DIA;
-            }
-
-            let confirmado = true;
-            if (diasAtraso > 0) {
-                if (typeof exibirModalMulta === 'function') {
-                    confirmado = await exibirModalMulta(diasAtraso, multa);
-                } else {
-                    confirmado = confirm(`Atraso de ${diasAtraso} dia(s). Multa de R$${multa.toFixed(2)}. Confirmar devolução?`);
-                }
-                if (!confirmado) {
-                    notificar('Devolução cancelada.', 'erro');
-                    return;
-                }
-            } else {
-                if (typeof exibirModalDevolucaoNormal === 'function') {
-                    confirmado = await exibirModalDevolucaoNormal();
-                } else {
-                    confirmado = confirm('Devolução dentro do prazo. Confirmar?');
-                }
-                if (!confirmado) return;
-            }
-
-            await db.alugueis.update(aluguelId, {
-                status: 'devolvido',
-                data_devolucao_real: hoje,
-                dias_atraso: diasAtraso,
-                multa: multa
-            });
-            notificar(`Livro "${aluguel.livro}" devolvido com sucesso! Multa: R$ ${multa.toFixed(2)}.`);
-            renderMeusLivros();
-        } catch (err) {
-            console.error('Erro ao devolver:', err);
-            notificar('Erro ao devolver livro.', 'erro');
-        }
-    };
-
-    // ----------------------------------------------------------
+    // ================================================================
     // LOGOUT
-    // ----------------------------------------------------------
+    // ================================================================
     if (typeof logout === 'function') {
         logoutBtn.addEventListener('click', logout);
     } else {
@@ -993,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // NAVEGAÇÃO ENTRE SEÇÕES (com parada da atualização automática)
+    // NAVEGAÇÃO ENTRE SEÇÕES
     // ================================================================
     const menuLinks = document.querySelectorAll('.menu-user a[data-section]');
     const titlesMap = {
@@ -1001,16 +1257,16 @@ document.addEventListener('DOMContentLoaded', () => {
         'perfil':            'Perfil',
         'editar-perfil':     'Editar Perfil',
         'biblioteca':        'Biblioteca',
-        'alugar-livro':      'Alugar Livro',
         'meus-livros':       'Meus Livros',
-        'solicitar-livros':  'Solicitar Livros'
+        'solicitar-livros':  'Solicitar Livros',
+        'notificacoes':      'Notificações'
+        // 'alugar-livro' removido
     };
 
     menuLinks.forEach(link => {
         link.addEventListener('click', function (e) {
             e.preventDefault();
 
-            // Para a atualização automática ao sair da página inicial
             pararAtualizacaoAutomatica();
 
             const section = this.getAttribute('data-section');
@@ -1024,9 +1280,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'perfil':            renderPerfil(); break;
                 case 'editar-perfil':     renderEditarPerfil(); break;
                 case 'biblioteca':        renderBiblioteca(); break;
-                case 'alugar-livro':      renderAlugarUsuario(); break;
                 case 'meus-livros':       renderMeusLivros(); break;
                 case 'solicitar-livros':  renderSolicitarLivros(); break;
+                case 'notificacoes':      renderNotificacoes(); break;
                 default: contentUser.innerHTML = '<p>Seção em desenvolvimento.</p>';
             }
         });
@@ -1035,7 +1291,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================================================================
     // INICIALIZAÇÃO
     // ================================================================
-    carregarUsuario().then(() => {
+    carregarUsuario().then(async () => {
+        // Atualiza contador de notificações
+        await atualizarContadorNotificacoes();
         const linkInicio = document.querySelector('a[data-section="inicio"]');
         if (linkInicio) linkInicio.click();
         else renderInicio();

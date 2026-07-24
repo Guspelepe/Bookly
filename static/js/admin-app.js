@@ -39,6 +39,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ===== FUNÇÃO PARA CRIAR NOTIFICAÇÃO PARA USUÁRIO =====
+    async function criarNotificacao(usuarioId, mensagem, tipo = 'sistema') {
+        try {
+            await aguardarBanco();
+            await db.notificacoes.add({
+                usuario_id: usuarioId,
+                mensagem: mensagem,
+                lida: false,
+                data_criacao: new Date().toISOString(),
+                tipo: tipo
+            });
+        } catch (err) {
+            console.error('Erro ao criar notificação:', err);
+        }
+    }
+
     // ================================================================
     // RENDERIZAÇÕES
     // ================================================================
@@ -113,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
         await db.clientes.delete(id);
         await db.avaliacoes.where('usuario_id').equals(id).delete();
 
-        // 🔹 REGISTRA LOG DE EXCLUSÃO DE USUÁRIO
         await registrarLog(
             'exclusao_usuario',
             id,
@@ -218,7 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 livros_lidos: 0, media_estrelas: 0, lendo_agora: '', bio: '', foto: ''
             });
 
-            // 🔹 REGISTRA LOG DE CRIAÇÃO DE USUÁRIO
             await registrarLog(
                 'criacao_usuario',
                 null,
@@ -266,6 +280,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     case 'exclusao_livro': tipoLabel = '🗑️ Exclusão de Livro'; break;
                     case 'exclusao_usuario': tipoLabel = '🗑️ Exclusão de Usuário'; break;
                     case 'criacao_usuario': tipoLabel = '➕ Criação de Usuário'; break;
+                    case 'solicitacao_aceita': tipoLabel = '✅ Solicitação Aceita'; break;
+                    case 'solicitacao_recusada': tipoLabel = '❌ Solicitação Recusada'; break;
                     default: tipoLabel = log.tipo;
                 }
 
@@ -594,7 +610,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 capa: capa || ''
             });
 
-            // Registra log de edição
             await registrarLog(
                 'edicao_livro',
                 null,
@@ -618,7 +633,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         await db.livros.delete(id);
 
-        // Registra log de exclusão
         await registrarLog(
             'exclusao_livro',
             null,
@@ -631,7 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCatalogo();
     };
 
-    // 5. ALUGAR
+    // 5. ALUGAR (admin direto)
     async function renderAlugar() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -716,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 6. DEVOLVER
+    // 6. DEVOLVER (admin direto)
     async function renderDevolver() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -815,23 +829,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 7. SOLICITAÇÕES
+    // ================================================================
+    // 7. SOLICITAÇÕES (unificadas: livros + aluguel/devolução)
+    // ================================================================
     async function renderSolicitacoes() {
         await aguardarBanco();
-        const solicitacoes = await db.solicitacoes.toArray();
+
+        // Busca solicitações de livros (sugestões de novos títulos)
+        const solicitacoesLivros = await db.solicitacoes.toArray();
         const clientes = await db.clientes.toArray();
         const mapaClientes = {};
         clientes.forEach(c => { mapaClientes[c.id] = { nome: c.nome, apelido: c.apelido }; });
+        solicitacoesLivros.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-        solicitacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+        // Busca solicitações de aluguel/devolução pendentes
+        const solicitacoesAluguel = await db.solicitacoes_aluguel
+            .where('status').equals('pendente')
+            .toArray();
+        solicitacoesAluguel.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
 
-        let html = `<div class="card"><h3>📩 Solicitações de Livros</h3>`;
-        if (solicitacoes.length === 0) {
-            html += `<p>Nenhuma solicitação enviada.</p>`;
+        let html = `<div class="card"><h3>📩 Solicitações de Livros (Sugestões)</h3>`;
+        if (solicitacoesLivros.length === 0) {
+            html += `<p>Nenhuma sugestão de livro enviada.</p>`;
         } else {
             html += `<table>
                 <thead><tr><th>Usuário</th><th>Título</th><th>Autor</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>`;
-            solicitacoes.forEach(s => {
+            solicitacoesLivros.forEach(s => {
                 const usuario = mapaClientes[s.usuario_id] || { nome: 'Desconhecido', apelido: '' };
                 const nomeUsuario = usuario.apelido || usuario.nome;
                 const data = new Date(s.data).toLocaleDateString('pt-BR');
@@ -851,9 +874,180 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `</tbody></table>`;
         }
         html += `</div>`;
+
+        // ===== SEÇÃO DE SOLICITAÇÕES DE ALUGUEL/DEVOLUÇÃO =====
+        html += `<div class="card"><h3>📋 Solicitações de Aluguel/Devolução (Pendentes)</h3>`;
+        if (solicitacoesAluguel.length === 0) {
+            html += `<p>Nenhuma solicitação pendente.</p>`;
+        } else {
+            html += `<table>
+                <thead><tr>
+                    <th>Usuário</th>
+                    <th>Tipo</th>
+                    <th>Livro</th>
+                    <th>Data Solicitação</th>
+                    <th>Multa (se devolução)</th>
+                    <th>Ações</th>
+                </tr></thead><tbody>`;
+            for (const sol of solicitacoesAluguel) {
+                const usuario = mapaClientes[sol.cliente_id] || { nome: 'Desconhecido', apelido: '' };
+                const nomeUsuario = usuario.apelido || usuario.nome;
+                const data = new Date(sol.data_solicitacao).toLocaleDateString('pt-BR') + ' ' + new Date(sol.data_solicitacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                const tipoLabel = sol.tipo === 'aluguel' ? '📤 Aluguel' : '📥 Devolução';
+                const multaExibicao = sol.multa_calculada ? `R$ ${sol.multa_calculada.toFixed(2)}` : '—';
+
+                html += `<tr>
+                    <td>${nomeUsuario}</td>
+                    <td>${tipoLabel}</td>
+                    <td>${sol.livro}</td>
+                    <td>${data}</td>
+                    <td>${multaExibicao}</td>
+                    <td>
+                        <button onclick="aceitarSolicitacaoAluguel(${sol.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">✅ Aceitar</button>
+                        <button onclick="recusarSolicitacaoAluguel(${sol.id})" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:4px;">❌ Recusar</button>
+                    </td>
+                </tr>`;
+            }
+            html += `</tbody></table>`;
+        }
+        html += `</div>`;
+
         contentArea.innerHTML = html;
+
+        // ===== FUNÇÕES DE ACEITAR/RECUSAR (globais) =====
+        window.aceitarSolicitacaoAluguel = async function(id) {
+            const sol = await db.solicitacoes_aluguel.get(id);
+            if (!sol) return;
+
+            const bibliotecario = sessionStorage.getItem('usuario') || 'Bibliotecário';
+
+            if (sol.tipo === 'aluguel') {
+                // Verifica se o livro ainda está disponível
+                const livroAlugado = await db.alugueis.where('livro').equals(sol.livro).filter(a => a.status === 'ativo').first();
+                if (livroAlugado) {
+                    notificar('Este livro já foi alugado por outro usuário.', 'erro');
+                    return;
+                }
+
+                // Cria o aluguel
+                await db.alugueis.add({
+                    cliente_id: sol.cliente_id,
+                    livro: sol.livro,
+                    data_locacao: sol.data_locacao,
+                    data_devolucao_prevista: sol.data_devolucao_prevista,
+                    status: 'ativo'
+                });
+
+                // Notifica o usuário
+                await criarNotificacao(
+                    sol.cliente_id,
+                    `✅ Seu pedido para alugar o livro "${sol.livro}" foi aceito. Vá até a Booksy mais próxima e retire seu livro.`,
+                    'aluguel'
+                );
+
+                // Log
+                await registrarLog(
+                    'solicitacao_aceita',
+                    sol.cliente_id,
+                    sol.cliente_nome,
+                    sol.livro,
+                    bibliotecario
+                );
+
+            } else if (sol.tipo === 'devolucao') {
+                // Busca o aluguel ativo correspondente
+                const aluguel = await db.alugueis
+                    .where('cliente_id').equals(sol.cliente_id)
+                    .and(a => a.livro === sol.livro && a.status === 'ativo')
+                    .first();
+
+                if (!aluguel) {
+                    notificar('Aluguel não encontrado para este livro.', 'erro');
+                    return;
+                }
+
+                // Calcula multa novamente (por segurança)
+                const hoje = new Date().toISOString().split('T')[0];
+                let diasAtraso = 0, multa = 0;
+                if (aluguel.data_devolucao_prevista) {
+                    const prevista = new Date(aluguel.data_devolucao_prevista + 'T00:00:00');
+                    const real = new Date(hoje + 'T00:00:00');
+                    if (real > prevista) {
+                        const diffMs = real - prevista;
+                        diasAtraso = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                        multa = diasAtraso * MULTA_POR_DIA;
+                    }
+                }
+
+                await db.alugueis.update(aluguel.id, {
+                    status: 'devolvido',
+                    data_devolucao_real: hoje,
+                    dias_atraso: diasAtraso,
+                    multa: multa
+                });
+
+                // Notifica o usuário
+                const multaMsg = multa > 0 ? ` Lembre-se de pagar a multa de R$ ${multa.toFixed(2)}.` : '';
+                await criarNotificacao(
+                    sol.cliente_id,
+                    `✅ Seu pedido para devolver o livro "${sol.livro}" foi aceito.${multaMsg}`,
+                    'devolucao'
+                );
+
+                // Log
+                await registrarLog(
+                    'solicitacao_aceita',
+                    sol.cliente_id,
+                    sol.cliente_nome,
+                    sol.livro,
+                    bibliotecario
+                );
+            }
+
+            // Atualiza status da solicitação
+            await db.solicitacoes_aluguel.update(id, {
+                status: 'aceito',
+                bibliotecario: bibliotecario
+            });
+
+            notificar('Solicitação aceita com sucesso!');
+            renderSolicitacoes(); // recarrega
+        };
+
+        window.recusarSolicitacaoAluguel = async function(id) {
+            const sol = await db.solicitacoes_aluguel.get(id);
+            if (!sol) return;
+
+            const bibliotecario = sessionStorage.getItem('usuario') || 'Bibliotecário';
+
+            // Notifica o usuário
+            await criarNotificacao(
+                sol.cliente_id,
+                `❌ Seu pedido para ${sol.tipo === 'aluguel' ? 'alugar' : 'devolver'} o livro "${sol.livro}" foi recusado.`,
+                'sistema'
+            );
+
+            // Log
+            await registrarLog(
+                'solicitacao_recusada',
+                sol.cliente_id,
+                sol.cliente_nome,
+                sol.livro,
+                bibliotecario
+            );
+
+            // Atualiza status
+            await db.solicitacoes_aluguel.update(id, {
+                status: 'recusado',
+                bibliotecario: bibliotecario
+            });
+
+            notificar('Solicitação recusada.');
+            renderSolicitacoes();
+        };
     }
 
+    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS (sugestões) =====
     window.verDetalhesSolicitacao = async function(id) {
         const solicitacao = await db.solicitacoes.get(id);
         if (!solicitacao) return;
@@ -912,6 +1106,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         await db.solicitacoes.update(id, { resposta: resposta });
+        // Cria notificação para o usuário
+        const solicitacao = await db.solicitacoes.get(id);
+        if (solicitacao) {
+            await criarNotificacao(
+                solicitacao.usuario_id,
+                `📬 Resposta para sua solicitação de livro "${solicitacao.titulo}": ${resposta}`,
+                'sistema'
+            );
+        }
         notificar('Resposta enviada!');
         document.getElementById('modal-detalhes-solicitacao').remove();
         renderSolicitacoes();
