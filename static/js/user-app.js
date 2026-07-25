@@ -3,7 +3,7 @@
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('👤 User app iniciado.');
+    console.log('User app iniciado.');
 
     // ----------------------------------------------------------
     // CONSTANTES & CONFIGURAÇÕES
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userNome.textContent    = usuarioAtual.nome.split(' ')[0] || usuarioAtual.nome;
             userApelido.textContent = usuarioAtual.apelido || '';
             userAvatar.src          = usuarioAtual.foto || 'static/src/avatares/usuario.jpg';
-            console.log('✅ Usuário carregado:', usuarioAtual.nome);
+            console.log('Usuário carregado:', usuarioAtual.nome);
         } catch (err) {
             console.error('Erro ao carregar usuário:', err);
             notificar('Erro ao carregar dados do usuário.', 'erro');
@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="info" style="text-align:center;">
                             <h4>${apelido}</h4>
-                            <span style="font-size:0.8rem; color: var(--text-secondary);">📚 ${u.livros_lidos} livros lidos</span>
+                            <span style="font-size:0.8rem; color: var(--text-secondary);">${u.livros_lidos} livros lidos</span>
                         </div>
                     </div>`;
                 });
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (abaAtiva) {
                 const tipo = abaAtiva.dataset.tipo;
                 await renderizarAba(tipo);
-                console.log('🔄 Aba atualizada automaticamente.');
+                console.log('Aba atualizada automaticamente.');
             }
         }, 30000);
 
@@ -493,11 +493,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let html = `
             <div class="card-user">
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-                    <h3 style="margin:0;">📌 Livros em Destaque</h3>
+                    <h3 style="margin:0;">Livros em Destaque</h3>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="btn-filtro" data-tipo="top_livros"    style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">📌 Livros em Destaque</button>
-                        <button class="btn-filtro" data-tipo="novos_livros"  style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">📚 Novos Livros</button>
-                        <button class="btn-filtro" data-tipo="top_usuarios"   style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">🏆 Top Usuários</button>
+                        <button class="btn-filtro" data-tipo="top_livros"    style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Livros em Destaque</button>
+                        <button class="btn-filtro" data-tipo="novos_livros"  style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Novos Livros</button>
+                        <button class="btn-filtro" data-tipo="top_usuarios"   style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Top Usuários</button>
                     </div>
                 </div>
                 <div id="grade-destaques"></div>
@@ -511,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             html += `
             <div class="card-user">
-                <h3>📚 Todos os Livros</h3>
+                <h3>Todos os Livros</h3>
                 <div style="display:flex; gap:8px; margin-bottom:16px;">
                     <input type="text" id="pesquisa-biblioteca" placeholder="🔍 Pesquisar livro..." style="flex:1; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--bg-card); color:var(--text-primary);">
                     <button id="btn-limpar-pesquisa-biblioteca" style="padding:8px 16px; background:#e74c3c; color:#fff; border:none; border-radius:6px; cursor:pointer;">✕</button>
@@ -587,10 +587,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // ===== ATUALIZAÇÃO AUTOMÁTICA =====
             iniciarAtualizacaoAutomatica();
 
-            console.log('✅ Página inicial renderizada.');
+            console.log('Página inicial renderizada.');
         } catch (err) {
             console.error('Erro ao renderizar início:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar a página inicial.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar a página inicial.</p>';
         }
     }
 
@@ -611,11 +611,11 @@ document.addEventListener('DOMContentLoaded', () => {
             await aguardarBanco();
             const alugueis = await db.alugueis.where({ cliente_id: usuarioId }).toArray();
             if (alugueis.length === 0) {
-                contentLeft.innerHTML = `<div class="card-user"><h3>📖 Meus Livros</h3><p>Você ainda não alugou nenhum livro.</p></div>`;
+                contentLeft.innerHTML = `<div class="card-user"><h3>Meus Livros</h3><p>Você ainda não alugou nenhum livro.</p></div>`;
                 return;
             }
 
-            let html = `<div class="card-user"><h3>📖 Meus Livros</h3>
+            let html = `<div class="card-user"><h3>Meus Livros</h3>
                 <table class="tabela-user">
                     <thead><tr>
                         <th>Livro</th><th>Data Locação</th><th>Prev. Devolução</th><th>Devolução Real</th>
@@ -665,14 +665,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (aluguel && aluguel.status === 'ativo') {
                         const btnRenovar = document.createElement('button');
                         btnRenovar.className = 'btn-user';
-                        btnRenovar.textContent = '🔄 Renovar';
+                        btnRenovar.textContent = 'Renovar';
                         btnRenovar.style.padding = '4px 12px';
                         btnRenovar.style.fontSize = '0.8rem';
                         btnRenovar.addEventListener('click', () => renovarAluguel(aluguelId));
 
                         const btnDevolver = document.createElement('button');
                         btnDevolver.className = 'btn-user';
-                        btnDevolver.textContent = '📦 Solicitar Devolução';
+                        btnDevolver.textContent = 'Solicitar Devolução';
                         btnDevolver.style.padding = '4px 12px';
                         btnDevolver.style.fontSize = '0.8rem';
                         btnDevolver.style.background = '#f39c12';
@@ -752,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             await criarNotificacao(
-                `📤 Você solicitou a devolução do livro "${aluguel.livro}". Aguarde a confirmação do bibliotecário.`,
+                `Você solicitou a devolução do livro "${aluguel.livro}". Aguarde a confirmação do bibliotecário.`,
                 'devolucao'
             );
 
@@ -791,18 +791,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2 style="margin:0; font-size:2rem;">${apelido || usuarioAtual.nome}</h2>
                     <p style="color:var(--text-secondary); font-size:1rem; margin-top:4px;">${usuarioAtual.nome}</p>
                     <button onclick="renderEditarPerfil()" style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.85rem; cursor:pointer; margin-top:8px; display:flex; align-items:center; gap:6px;">
-                        ✏️ Editar Perfil
+                        Editar Perfil
                     </button>
                 </div>
             </div>
             <div class="card-user">
-                <h3>🧾 Sobre</h3>
+                <h3>Sobre</h3>
                 <p><strong>Bio:</strong> ${bio}</p>
                 <p><strong>Nascimento:</strong> ${nascimento}</p>
                 <p><strong>Lendo agora:</strong> ${lendoAgora}</p>
             </div>`;
 
-            html += '<div class="card-user"><h3>⭐ Minhas Avaliações</h3>';
+            html += '<div class="card-user"><h3> Minhas Avaliações</h3>';
             if (avaliacoes.length === 0) {
                 html += '<p>Você ainda não fez nenhuma avaliação.</p>';
             } else {
@@ -819,7 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
             contentLeft.innerHTML = html;
         } catch (err) {
             console.error('Erro ao renderizar perfil:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar perfil.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar perfil.</p>';
         }
     }
 
@@ -838,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let html = `
             <div class="card-user">
-                <h3>✏️ Editar Perfil</h3>
+                <h3>Editar Perfil</h3>
                 <h4 style="margin-top:20px; border-bottom:1px solid var(--border-color); padding-bottom:8px; color:var(--accent-color);">PERFIL</h4>
                 <div style="display:grid; grid-template-columns:1fr; gap:16px; margin-top:16px;">
                     <div>
@@ -850,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <textarea id="edit-bio" rows="3" style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary); resize:vertical;">${bio}</textarea>
                     </div>
                     <div>
-                        <label>📖 Lendo agora</label>
+                        <label>Lendo agora</label>
                         <input type="text" id="edit-lendo" value="${lendoAgora}" style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                     </div>
                     <div>
@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await aguardarBanco();
 
             if (!db.solicitacoes) {
-                contentLeft.innerHTML = '<div class="card-user"><h3>📩 Solicitar Livros</h3><p>Recurso temporariamente indisponível.</p></div>';
+                contentLeft.innerHTML = '<div class="card-user"><h3>Solicitar Livros</h3><p>Recurso temporariamente indisponível.</p></div>';
                 return;
             }
 
@@ -937,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let html = `
                 <div class="card-user">
-                    <h3>📩 Solicitar Livros</h3>
+                    <h3>Solicitar Livros</h3>
                     <p style="color: var(--text-secondary); margin-bottom: 16px;">Sugira novos títulos para nossa biblioteca.</p>
                     <form id="form-solicitar-livro" class="form-user" style="max-width: 100%;">
                         <div class="full-width">
@@ -963,13 +963,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            html += `<div class="card-user"><h3>📋 Minhas Solicitações</h3>`;
+            html += `<div class="card-user"><h3>Minhas Solicitações</h3>`;
             if (minhasSolicitacoes.length === 0) {
                 html += `<p style="color: var(--text-secondary);">Você ainda não enviou nenhuma solicitação.</p>`;
             } else {
                 html += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
                 minhasSolicitacoes.forEach(s => {
-                    const statusTexto = s.status === 'atendido' ? '✅ Atendido' : '⏳ Pendente';
+                    const statusTexto = s.status === 'atendido' ? 'Atendido' : 'Pendente';
                     const statusCor = s.status === 'atendido' ? '#27ae60' : '#f39c12';
                     html += `
                     <div style="background: var(--bg-sidebar); padding: 12px 16px; border-radius: 8px; border-left: 3px solid ${statusCor};">
@@ -981,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${s.comentario ? `<p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">"${s.comentario}"</p>` : ''}
                         ${s.resposta ? `
                             <div style="background: rgba(39, 174, 96, 0.1); padding: 8px 12px; border-radius: 4px; margin-top: 8px; border-left: 3px solid #27ae60;">
-                                <strong style="color: #27ae60;">📬 Resposta da biblioteca:</strong>
+                                <strong style="color: #27ae60;">Resposta da biblioteca:</strong>
                                 <p style="margin: 4px 0 0; color: var(--text-secondary); font-size: 0.85rem;">${s.resposta}</p>
                             </div>
                         ` : ''}
@@ -1022,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (err) {
             console.error('Erro ao renderizar solicitações:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar a seção de solicitações.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar a seção de solicitações.</p>';
         }
     }
 
@@ -1034,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await aguardarBanco();
             const notificacoes = await buscarTodasNotificacoes();
 
-            let html = `<div class="card-user"><h3>📬 Minhas Notificações</h3>`;
+            let html = `<div class="card-user"><h3>Minhas Notificações</h3>`;
 
             if (notificacoes.length === 0) {
                 html += `<p style="color: var(--text-secondary);">Você não tem notificações.</p>`;
@@ -1065,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
             contentLeft.innerHTML = html;
         } catch (err) {
             console.error('Erro ao renderizar notificações:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar notificações.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar notificações.</p>';
         }
     }
 
@@ -1110,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button onclick="this.closest('#modal-detalhes-livro').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
                     <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
                         <div style="flex: 0 0 160px; max-width: 160px;">
-                            <img src="${capaUrl}" alt="${livro.titulo}" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: block;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:40px 0; color:var(--text-secondary);\\'>📚 Capa não disponível</div>'">
+                            <img src="${capaUrl}" alt="${livro.titulo}" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: block;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:40px 0; color:var(--text-secondary);\\'>Capa não disponível</div>'">
                         </div>
                         <div style="flex: 1; min-width: 200px;">
                             <h2 style="margin: 0 0 8px 0; font-size: 1.6rem; color: var(--text-primary, #fff);">${livro.titulo}</h2>
@@ -1122,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <hr style="border-color: var(--border-color, #2a2a3a); margin: 12px 0;">
                             <p style="margin: 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
                             ${disponivel ? `
-                                <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">📚 Alugar este livro</button>
+                                <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
                             ` : `
                                 <p style="margin-top: 16px; color: #e74c3c; text-align:center;">Este livro não está disponível no momento.</p>
                             `}
@@ -1210,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.innerHTML = `
                 <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 480px; width: 100%; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
                     <button onclick="this.closest('#modal-confirmar-aluguel').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
-                    <h3 style="margin: 0 0 8px 0;">📚 Confirmar Aluguel</h3>
+                    <h3 style="margin: 0 0 8px 0;">Confirmar Aluguel</h3>
                     <p style="color: var(--text-secondary); margin-bottom: 16px;">Confirme os dados para solicitar o aluguel do livro:</p>
                     <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
                         <p><strong>Livro:</strong> ${livroTitulo}</p>
@@ -1253,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     await criarNotificacao(
-                        `📤 Você solicitou o aluguel do livro "${livroTitulo}". Aguarde a confirmação do bibliotecário.`,
+                        `Você solicitou o aluguel do livro "${livroTitulo}". Aguarde a confirmação do bibliotecário.`,
                         'aluguel'
                     );
 
@@ -1374,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else renderInicio();
     }).catch(err => {
         console.error('Erro na inicialização:', err);
-        contentLeft.innerHTML = '<p>⚠️ Erro ao iniciar o painel. Recarregue a página.</p>';
+        contentLeft.innerHTML = '<p>Erro ao iniciar o painel. Recarregue a página.</p>';
     });
 
 }); // FIM DOMContentLoaded

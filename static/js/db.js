@@ -249,10 +249,10 @@ async function migrarLivros() {
             }
         }
         if (atualizados > 0) {
-            console.warn(`📚 ${atualizados} livros atualizados com novos campos.`);
+            console.warn(` ${atualizados} livros atualizados com novos campos.`);
         }
     } catch (err) {
-        console.error('❌ Erro na migração de livros:', err);
+        console.error(' Erro na migração de livros:', err);
     }
 }
 
@@ -270,10 +270,10 @@ async function migrarCapa() {
             }
         }
         if (atualizados > 0) {
-            console.warn(`📚 ${atualizados} livros receberam o campo capa.`);
+            console.warn(` ${atualizados} livros receberam o campo capa.`);
         }
     } catch (err) {
-        console.error('❌ Erro na migração de capa:', err);
+        console.error(' Erro na migração de capa:', err);
     }
 }
 
@@ -297,7 +297,7 @@ async function sincronizarLivros() {
             }
         }
         if (adicionados > 0) {
-            console.warn(`📚 ${adicionados} novos livros adicionados.`);
+            console.warn(` ${adicionados} novos livros adicionados.`);
         }
 
         // ==========================================
@@ -308,7 +308,7 @@ async function sincronizarLivros() {
         // ==========================================
 
     } catch (err) {
-        console.error('❌ Erro ao sincronizar livros:', err);
+        console.error(' Erro ao sincronizar livros:', err);
     }
 }
 
@@ -319,7 +319,7 @@ async function seedDatabase() {
     try {
         const existing = await db.clientes.where('foto').notEqual('').toArray();
         if (existing.length >= 10) {
-            console.warn(`⏭️ Já existem ${existing.length} usuários. Pulando seed.`);
+            console.warn(`⏭ Já existem ${existing.length} usuários. Pulando seed.`);
             return;
         }
 
@@ -327,10 +327,10 @@ async function seedDatabase() {
             for (let u of existing) await db.clientes.delete(u.id);
             const ids = existing.map(u => u.id);
             await db.avaliacoes.where('usuario_id').anyOf(ids).delete();
-            console.warn('🗑️ Usuários antigos removidos.');
+            console.warn(' Usuários antigos removidos.');
         }
 
-        console.warn('🌱 Criando 10 usuários fixos...');
+        console.warn(' Criando 10 usuários fixos...');
 
         for (const usuario of USUARIOS_FIXOS) {
             const id = await db.clientes.add({
@@ -384,9 +384,9 @@ async function seedDatabase() {
             }
         }
 
-        console.warn('✅ Seed concluído.');
+        console.warn('Seed concluído.');
     } catch (err) {
-        console.error('❌ Erro no seed:', err);
+        console.error('Erro no seed:', err);
     }
 }
 
@@ -397,7 +397,7 @@ async function popularFrases() {
     const count = await db.frases.count();
     if (count === 0) {
         await db.frases.bulkAdd(FRASES_INICIAIS);
-        console.warn('📝 Frases inicializadas.');
+        console.warn('Frases inicializadas.');
     }
 }
 
@@ -406,15 +406,15 @@ async function popularFrases() {
 // ==========================================
 db.on('ready', async () => {
     try {
-        console.warn('🔧 Inicializando banco...');
+        console.warn('Inicializando banco...');
 
         // 1. Livros – inicializa, migra campos e sincroniza
         const countLivros = await db.livros.count();
         if (countLivros === 0) {
             await db.livros.bulkAdd(LIVROS_INICIAIS);
-            console.warn(`📚 ${LIVROS_INICIAIS.length} livros inicializados.`);
+            console.warn(` ${LIVROS_INICIAIS.length} livros inicializados.`);
         } else {
-            console.warn(`📚 Já existem ${countLivros} livros.`);
+            console.warn(` Já existem ${countLivros} livros.`);
             await migrarLivros();
             await sincronizarLivros();
             await migrarCapa();  // <-- garante o campo capa
@@ -444,7 +444,7 @@ db.on('ready', async () => {
         const semSenha = await db.clientes.filter(c => !c.senha).toArray();
         for (let c of semSenha) {
             await db.clientes.update(c.id, { senha: '123456' });
-            console.warn(`🔑 Cliente "${c.nome}" recebeu senha padrão.`);
+            console.warn(` Cliente "${c.nome}" recebeu senha padrão.`);
         }
 
         // 4. Seed de usuários fixos
@@ -453,8 +453,8 @@ db.on('ready', async () => {
         // 5. Frases
         await popularFrases();
 
-        console.warn('✅ Banco de dados pronto.');
+        console.warn('Banco de dados pronto.');
     } catch (err) {
-        console.error('❌ Erro na inicialização:', err);
+        console.error('Erro na inicialização:', err);
     }
 });

@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let html = `<div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="margin:0; border-bottom:none; padding-bottom:0;">👥 Usuários Cadastrados</h3>
+                <h3 style="margin:0; border-bottom:none; padding-bottom:0;">Usuários Cadastrados</h3>
                 <button id="btn-novo-usuario" class="tema-botao-sidebar" style="width:auto; padding:8px 16px; background:var(--btn-primary); color:#fff; border:none; border-radius:4px; cursor:pointer;">➕ Novo Usuário</button>
             </div>`;
 
@@ -100,8 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td style="text-align:center; font-family:monospace;">${c.cpf}</td>
                     <td style="text-align:center;">${livro !== '—' ? `<span class="status-ativo">${livro}</span>` : '—'}</td>
                     <td style="text-align:center; white-space:nowrap;">
-                        <button onclick="resetarSenha(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#f39c12; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔑 Senha</button>
-                        <button onclick="excluirUsuario(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">🗑️ Excluir</button>
+                        <button onclick="resetarSenha(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#f39c12; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Senha</button>
+                        <button onclick="excluirUsuario(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">Excluir</button>
                     </td>
                 </tr>`;
             });
@@ -187,10 +187,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 await aguardarBanco();
                 const cpfFormatado = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
                 const existente = await db.clientes.where('cpf').equals(cpfFormatado).first();
-                span.textContent = existente ? '❌ CPF já cadastrado.' : '✅ CPF disponível.';
+                span.textContent = existente ? ' CPF já cadastrado.' : 'CPF disponível.';
                 span.style.color = existente ? '#e74c3c' : '#27ae60';
             } else {
-                span.textContent = cpfBruto.length > 0 ? '❌ CPF inválido.' : '';
+                span.textContent = cpfBruto.length > 0 ? ' CPF inválido.' : '';
                 span.style.color = '#e74c3c';
             }
         });
@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!span || !apelido) { if (span) span.textContent = ''; return; }
             await aguardarBanco();
             const existente = await db.clientes.where('apelido').equalsIgnoreCase(apelido).first();
-            span.textContent = existente ? '❌ Apelido já está em uso.' : '✅ Apelido disponível.';
+            span.textContent = existente ? ' Apelido já está em uso.' : 'Apelido disponível.';
             span.style.color = existente ? '#e74c3c' : '#27ae60';
         });
 
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const logs = await db.logs.toArray();
         logs.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-        let html = `<div class="card"><h3>📋 Últimas Movimentações</h3>`;
+        let html = `<div class="card"><h3>Últimas Movimentações</h3>`;
         if (logs.length === 0) {
             html += `<p>Nenhuma movimentação registrada ainda.</p>`;
         } else {
@@ -273,15 +273,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 let tipoLabel = '';
                 switch (log.tipo) {
-                    case 'aluguel': tipoLabel = '📤 Aluguel'; break;
-                    case 'devolucao': tipoLabel = '📥 Devolução'; break;
-                    case 'adicao_livro': tipoLabel = '➕ Adição de Livro'; break;
-                    case 'edicao_livro': tipoLabel = '✏️ Edição de Livro'; break;
-                    case 'exclusao_livro': tipoLabel = '🗑️ Exclusão de Livro'; break;
-                    case 'exclusao_usuario': tipoLabel = '🗑️ Exclusão de Usuário'; break;
-                    case 'criacao_usuario': tipoLabel = '➕ Criação de Usuário'; break;
-                    case 'solicitacao_aceita': tipoLabel = '✅ Solicitação Aceita'; break;
-                    case 'solicitacao_recusada': tipoLabel = '❌ Solicitação Recusada'; break;
+                    case 'aluguel': tipoLabel = 'Aluguel'; break;
+                    case 'devolucao': tipoLabel = 'Devolução'; break;
+                    case 'adicao_livro': tipoLabel = 'Adição de Livro'; break;
+                    case 'edicao_livro': tipoLabel = 'Edição de Livro'; break;
+                    case 'exclusao_livro': tipoLabel = 'Exclusão de Livro'; break;
+                    case 'exclusao_usuario': tipoLabel = 'Exclusão de Usuário'; break;
+                    case 'criacao_usuario': tipoLabel = 'Criação de Usuário'; break;
+                    case 'solicitacao_aceita': tipoLabel = 'Solicitação Aceita'; break;
+                    case 'solicitacao_recusada': tipoLabel = 'Solicitação Recusada'; break;
                     default: tipoLabel = log.tipo;
                 }
 
@@ -312,9 +312,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = `
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-                    <h3 style="margin:0;">📚 Catálogo de Livros</h3>
+                    <h3 style="margin:0;">Catálogo de Livros</h3>
                     <div style="display:flex; gap:8px; flex:1; max-width:400px; min-width:180px;">
-                        <input type="text" id="pesquisa-catalogo" placeholder="🔍 Pesquisar livro..." style="flex:1; padding:8px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--input-bg); color:var(--text-primary);">
+                        <input type="text" id="pesquisa-catalogo" placeholder="Pesquisar livro..." style="flex:1; padding:8px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--input-bg); color:var(--text-primary);">
                         <button id="btn-limpar-pesquisa" style="padding:8px 12px; background:var(--btn-danger); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">✕</button>
                     </div>
                 </div>
@@ -351,8 +351,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${livro.genero || '—'}</td>
                     <td>${livro.classificacao || 'Livre'}</td>
                     <td>
-                        <button onclick="abrirModalEditarLivro(${livro.id})" style="background:#3498db; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">✏️ Editar</button>
-                        <button onclick="excluirLivro(${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:4px;">🗑️ Excluir</button>
+                        <button onclick="abrirModalEditarLivro(${livro.id})" style="background:#3498db; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Editar</button>
+                        <button onclick="excluirLivro(${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}')" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:4px;">Excluir</button>
                     </td>
                 </tr>`;
             });
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await aguardarBanco();
         let html = `
             <div class="card">
-                <h3>➕ Adicionar Novo Livro</h3>
+                <h3>Adicionar Novo Livro</h3>
                 <form id="form-adicionar-livro">
                     <div><label for="novo-titulo">Título</label><input type="text" id="novo-titulo" placeholder="Nome do livro" required></div>
                     <div><label for="novo-autor">Autor</label><input type="text" id="novo-autor" placeholder="Nome do autor" required></div>
@@ -410,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </form>
             </div>
             <div class="card">
-                <h3>📚 Últimos Livros Adicionados</h3>
+                <h3>Últimos Livros Adicionados</h3>
                 <div id="ultimos-livros-adicionados"><p>Carregando...</p></div>
             </div>
         `;
@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.innerHTML = `
             <div style="background:#fff; padding:28px; border-radius:8px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0;">✏️ Editar Livro</h3>
+                    <h3 style="margin:0;">Editar Livro</h3>
                     <button onclick="this.closest('#modal-editar-livro').remove()" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:#999;">&times;</button>
                 </div>
                 <form id="form-editar-livro">
@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const clientes = await db.clientes.toArray();
         const livros = await db.livros.toArray();
 
-        let html = `<div class="card"><h3>📤 Realizar Aluguel</h3>
+        let html = `<div class="card"><h3>Realizar Aluguel</h3>
             <form id="form-alugar">
                 <div><label for="cliente-alugar">Cliente</label>
                     <select id="cliente-alugar" required><option value="">Selecione...</option>`;
@@ -734,7 +734,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function renderDevolver() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
-        let html = `<div class="card"><h3>📥 Devolução de Livro</h3>
+        let html = `<div class="card"><h3>Devolução de Livro</h3>
             <form id="form-devolver">
                 <div><label for="cliente-devolver">Cliente</label>
                     <select id="cliente-devolver" required><option value="">Selecione...</option>`;
@@ -848,7 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .toArray();
         solicitacoesAluguel.sort((a, b) => new Date(b.data_solicitacao) - new Date(a.data_solicitacao));
 
-        let html = `<div class="card"><h3>📩 Solicitações de Livros (Sugestões)</h3>`;
+        let html = `<div class="card"><h3>Solicitações de Livros (Sugestões)</h3>`;
         if (solicitacoesLivros.length === 0) {
             html += `<p>Nenhuma sugestão de livro enviada.</p>`;
         } else {
@@ -867,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${data}</td>
                     <td class="${statusClass}">${statusTexto}</td>
                     <td>
-                        ${s.status === 'pendente' ? `<button onclick="atenderSolicitacao(${s.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">✅ Atender</button>` : '—'}
+                        ${s.status === 'pendente' ? `<button onclick="atenderSolicitacao(${s.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Atender</button>` : '—'}
                     </td>
                 </tr>`;
             });
@@ -876,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html += `</div>`;
 
         // ===== SEÇÃO DE SOLICITAÇÕES DE ALUGUEL/DEVOLUÇÃO =====
-        html += `<div class="card"><h3>📋 Solicitações de Aluguel/Devolução (Pendentes)</h3>`;
+        html += `<div class="card"><h3>Solicitações de Aluguel/Devolução (Pendentes)</h3>`;
         if (solicitacoesAluguel.length === 0) {
             html += `<p>Nenhuma solicitação pendente.</p>`;
         } else {
@@ -893,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const usuario = mapaClientes[sol.cliente_id] || { nome: 'Desconhecido', apelido: '' };
                 const nomeUsuario = usuario.apelido || usuario.nome;
                 const data = new Date(sol.data_solicitacao).toLocaleDateString('pt-BR') + ' ' + new Date(sol.data_solicitacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-                const tipoLabel = sol.tipo === 'aluguel' ? '📤 Aluguel' : '📥 Devolução';
+                const tipoLabel = sol.tipo === 'aluguel' ? 'Aluguel' : 'Devolução';
                 const multaExibicao = sol.multa_calculada ? `R$ ${sol.multa_calculada.toFixed(2)}` : '—';
 
                 html += `<tr>
@@ -903,8 +903,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${data}</td>
                     <td>${multaExibicao}</td>
                     <td>
-                        <button onclick="aceitarSolicitacaoAluguel(${sol.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">✅ Aceitar</button>
-                        <button onclick="recusarSolicitacaoAluguel(${sol.id})" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:4px;">❌ Recusar</button>
+                        <button onclick="aceitarSolicitacaoAluguel(${sol.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Aceitar</button>
+                        <button onclick="recusarSolicitacaoAluguel(${sol.id})" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:4px;">Recusar</button>
                     </td>
                 </tr>`;
             }
@@ -941,7 +941,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Notifica o usuário
                 await criarNotificacao(
                     sol.cliente_id,
-                    `✅ Seu pedido para alugar o livro "${sol.livro}" foi aceito. Vá até a Booksy mais próxima e retire seu livro.`,
+                    `Seu pedido para alugar o livro "${sol.livro}" foi aceito. Vá até a Booksy mais próxima e retire seu livro.`,
                     'aluguel'
                 );
 
@@ -990,7 +990,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const multaMsg = multa > 0 ? ` Lembre-se de pagar a multa de R$ ${multa.toFixed(2)}.` : '';
                 await criarNotificacao(
                     sol.cliente_id,
-                    `✅ Seu pedido para devolver o livro "${sol.livro}" foi aceito.${multaMsg}`,
+                    `Seu pedido para devolver o livro "${sol.livro}" foi aceito.${multaMsg}`,
                     'devolucao'
                 );
 
@@ -1023,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Notifica o usuário
             await criarNotificacao(
                 sol.cliente_id,
-                `❌ Seu pedido para ${sol.tipo === 'aluguel' ? 'alugar' : 'devolver'} o livro "${sol.livro}" foi recusado.`,
+                ` Seu pedido para ${sol.tipo === 'aluguel' ? 'alugar' : 'devolver'} o livro "${sol.livro}" foi recusado.`,
                 'sistema'
             );
 
@@ -1056,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nomeUsuario = usuario.apelido || usuario.nome || 'Desconhecido';
         const fotoUrl = usuario.foto || 'static/src/avatares/usuario.jpg';
         const data = new Date(solicitacao.data).toLocaleDateString('pt-BR');
-        const status = solicitacao.status === 'atendido' ? '✅ Atendido' : '⏳ Pendente';
+        const status = solicitacao.status === 'atendido' ? 'Atendido' : 'Pendente';
 
         const existente = document.getElementById('modal-detalhes-solicitacao');
         if (existente) existente.remove();
@@ -1078,13 +1078,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${solicitacao.autor ? `<div><strong>Autor:</strong> ${solicitacao.autor}</div>` : ''}
                 ${solicitacao.editora ? `<div><strong>Editora:</strong> ${solicitacao.editora}</div>` : ''}
                 ${solicitacao.comentario ? `<div style="background:#f8f9fa; padding:12px; border-radius:6px; margin-bottom:16px;"><strong>Comentário:</strong><p style="margin:8px 0 0; color:#555; font-style:italic;">"${solicitacao.comentario}"</p></div>` : ''}
-                ${solicitacao.resposta ? `<div style="background:#e8f5e9; padding:12px; border-radius:6px; margin-bottom:16px; border-left:4px solid #27ae60;"><strong>📬 Resposta:</strong><p style="margin:8px 0 0; color:#2e7d32;">${solicitacao.resposta}</p></div>` : ''}
+                ${solicitacao.resposta ? `<div style="background:#e8f5e9; padding:12px; border-radius:6px; margin-bottom:16px; border-left:4px solid #27ae60;"><strong>Resposta:</strong><p style="margin:8px 0 0; color:#2e7d32;">${solicitacao.resposta}</p></div>` : ''}
                 <div style="margin-top:12px;">
                     <label for="resposta-admin" style="display:block; margin-bottom:4px; font-weight:600;">Responder ao usuário:</label>
                     <textarea id="resposta-admin" rows="3" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" placeholder="Escreva uma resposta...">${solicitacao.resposta || ''}</textarea>
-                    <button onclick="enviarResposta(${solicitacao.id})" style="margin-top:8px; background:#2196F3; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">✉️ Enviar Resposta</button>
+                    <button onclick="enviarResposta(${solicitacao.id})" style="margin-top:8px; background:#2196F3; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Enviar Resposta</button>
                 </div>
-                ${solicitacao.status === 'pendente' ? `<button onclick="atenderSolicitacao(${solicitacao.id}); document.getElementById('modal-detalhes-solicitacao').remove();" style="background:#27ae60; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-top:12px;">✅ Atender</button>` : ''}
+                ${solicitacao.status === 'pendente' ? `<button onclick="atenderSolicitacao(${solicitacao.id}); document.getElementById('modal-detalhes-solicitacao').remove();" style="background:#27ae60; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-top:12px;">Atender</button>` : ''}
             </div>
         `;
         document.body.appendChild(modal);

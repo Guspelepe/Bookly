@@ -259,10 +259,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const cpfFormatado = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
             const existente = await db.clientes.where('cpf').equals(cpfFormatado).first();
             
-            span.textContent = existente ? '❌ CPF já cadastrado.' : '✅ CPF disponível.';
+            span.textContent = existente ? ' CPF já cadastrado.' : ' CPF disponível.';
             span.style.color = existente ? '#ef4444' : '#10b981';
         } else {
-            span.textContent = cpfBruto.length > 0 ? '❌ CPF inválido.' : '';
+            span.textContent = cpfBruto.length > 0 ? ' CPF inválido.' : '';
             span.style.color = '#ef4444';
         }
     });
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof aguardarBanco === 'function') await aguardarBanco();
         const existente = await db.clientes.where('apelido').equalsIgnoreCase(nick).first();
         
-        span.textContent = existente ? '❌ Apelido já está em uso.' : '✅ Apelido disponível.';
+        span.textContent = existente ? ' Apelido já está em uso.' : ' Apelido disponível.';
         span.style.color = existente ? '#ef4444' : '#10b981';
     });
 
@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    console.log('✅ Landing page inicializada com sucesso.');
+    console.log(' Landing page inicializada com sucesso.');
 
     
 });

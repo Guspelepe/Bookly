@@ -250,7 +250,7 @@ function exibirModalDevolucaoNormal() {
             modal.innerHTML = `
                 <div style="background: #ffffff; padding: 32px; border-radius: 16px; max-width: 400px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); text-align: center;">
                     <div style="background: #ecfdf5; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                        <span style="font-size: 24px; color: #10b981;">✅</span>
+                        <span style="font-size: 24px; color: #10b981;"></span>
                     </div>
                     <h3 style="margin: 0 0 8px 0; color: #1e293b; font-size: 20px; font-weight: 700;">Confirmar Devolução</h3>
                     <p style="margin: 0 0 24px 0; color: #64748b; font-size: 14px;">O item está dentro do prazo regulamentar. Não há multas ou taxas adicionais a serem aplicadas.</p>
