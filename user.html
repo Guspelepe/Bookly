@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -9,14 +9,15 @@
 </head>
 <body>
     <div class="user-container">
-        <!-- MENU LATERAL -->
-        <aside class="sidebar-user">
+        <!-- BOTÃO TOGGLE (HAMBÚRGUER) -->
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Abrir/fechar menu">☰</button>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar-user" id="sidebar-user">
             <div class="user-header">
-                <!-- LOGO BOOKSLY -->
                 <div class="logo-sidebar">
                     <img src="static/src/avatares/logo.png" alt="Booksly">
                 </div>
-                
                 <div class="avatar" id="avatar-container">
                     <img id="user-avatar" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNTAiIGZpbGw9IiNlZWUiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjQwIiByPSIxNSIgZmlsbD0iI2NjYyIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iODUiIHI9IjMwIiBmaWxsPSIjY2NjIi8+PC9zdmc+" alt="Avatar">
                 </div>
@@ -28,36 +29,46 @@
                 <ul>
                     <li><a href="#" data-section="inicio" class="active">Página Inicial</a></li>
                     <li><a href="#" data-section="perfil">Perfil</a></li>
-                    <li><a href="#" data-section="biblioteca">Biblioteca</a></li>
                     <li><a href="#" data-section="meus-livros">Meus Livros</a></li>
                     <li><a href="#" data-section="solicitar-livros">Solicitar Livros</a></li>
-                    <li><a href="#" data-section="editar-perfil">Editar Perfil</a></li>
-                    <li>
-                        <a href="#" data-section="notificacoes">
-                            Notificações
-                            <span id="badge-notificacoes" style="display:none; background:#e74c3c; color:#fff; border-radius:50%; padding:2px 8px; font-size:0.7rem; margin-left:8px;"></span>
-                        </a>
-                    </li>
+                    <!-- Editar Perfil removido da sidebar -->
+                    <li><a href="#" data-section="notificacoes">Notificações <span id="badge-notificacoes">0</span></a></li>
                     <li><a href="#" id="logout-user">Sair</a></li>
-                    
                 </ul>
-                <!-- LINK DO GITHUB -->
                 <div class="sidebar-footer">
                     <a href="https://github.com/ronaldokaras/sistema-biblioteca-grupo" target="_blank" rel="noopener" class="github-link">
-                         GitHub
+                        GitHub
                     </a>
                 </div>
             </nav>
         </aside>
 
         <!-- CONTEÚDO PRINCIPAL -->
-        <main class="main-user">
+        <main class="main-user" id="main-user">
             <header class="topbar-user">
                 <h1 id="section-title-user">Página Inicial</h1>
                 <div class="topbar-actions-user"></div>
             </header>
-            <div class="content-user" id="content-user">
-                <p>Bem-vindo! Selecione uma opção no menu.</p>
+
+            <div class="main-content-wrapper">
+                <!-- COLUNA ESQUERDA (conteúdo principal) -->
+                <div class="content-left" id="content-left">
+                    <p>Carregando...</p>
+                </div>
+
+                <!-- COLUNA DIREITA (comunidade + notificações) -->
+                <div class="content-right" id="content-right">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h3 style="margin:0;">Comunidade</h3>
+                        <button id="btn-notificacoes-topo" style="background:transparent; border:none; color:var(--accent-color); font-size:1.3rem; cursor:pointer; position:relative;" title="Ver notificações">
+                            🔔
+                            <span id="badge-notificacoes-topo" style="display:none; position:absolute; top:-8px; right:-10px; background:#e74c3c; color:#fff; border-radius:50%; padding:2px 6px; font-size:0.65rem; font-weight:bold;"></span>
+                        </button>
+                    </div>
+                    <div id="comunidade-container">
+                        <p style="color:var(--text-secondary);">Carregando avaliações...</p>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

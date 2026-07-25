@@ -1,11 +1,11 @@
-// ==========================================
+﻿// ==========================================
 // db.js – Configuração do Dexie (global)
 // ==========================================
 
 window.db = new Dexie('BibliotecaDB');
 
 // ===== VERSÃO 8 – adiciona campo capa nos livros =====
-db.version(11).stores({
+db.version(12).stores({
     clientes: '++id, cpf, nome, apelido, foto, livros_lidos, media_estrelas, lendo_agora, bio, nascimento',
     alugueis: '++id, cliente_id, status, livro, dias_atraso, multa',
     livros: '++id, titulo, genero, capa',
