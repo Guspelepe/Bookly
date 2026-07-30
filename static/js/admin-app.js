@@ -3,7 +3,7 @@
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('👤 Admin app iniciado.');
+    console.log('Admin app iniciado.');
 
     const MULTA_POR_DIA = 1.00;
 
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // RENDERIZAÇÕES
     // ================================================================
 
-    // 1. USUÁRIOS
+    // 1. USUÁRIOS (com barra de pesquisa)
     async function renderUsuarios() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -68,15 +68,27 @@ document.addEventListener('DOMContentLoaded', function() {
         alugueisAtivos.forEach(a => { mapaAluguel[a.cliente_id] = a.livro; });
 
         let html = `<div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
                 <h3 style="margin:0; border-bottom:none; padding-bottom:0;">Usuários Cadastrados</h3>
-                <button id="btn-novo-usuario" class="tema-botao-sidebar" style="width:auto; padding:8px 16px; background:var(--btn-primary); color:#fff; border:none; border-radius:4px; cursor:pointer;">➕ Novo Usuário</button>
-            </div>`;
+                <div style="display:flex; gap:8px; flex:1; max-width:400px; min-width:180px;">
+                    <input type="text" id="pesquisa-usuarios" placeholder="Pesquisar por nome, apelido ou CPF..." style="flex:1; padding:8px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--input-bg); color:var(--text-primary);">
+                    <button id="btn-limpar-pesquisa-usuarios" style="padding:8px 12px; background:var(--btn-danger); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">×</button>
+                </div>
+                <button id="btn-novo-usuario" class="tema-botao-sidebar" style="width:auto; padding:8px 16px; background:var(--btn-primary); color:#fff; border:none; border-radius:4px; cursor:pointer;">Novo Usuário</button>
+            </div>
+            <div id="tabela-usuarios-container"></div>
+        </div>`;
 
-        if (clientes.length === 0) {
-            html += `<p>Nenhum usuário cadastrado.</p>`;
-        } else {
-            html += `<table class="tabela-usuarios">
+        contentArea.innerHTML = html;
+
+        function renderizarTabelaUsuarios(lista) {
+            const container = document.getElementById('tabela-usuarios-container');
+            if (!container) return;
+            if (lista.length === 0) {
+                container.innerHTML = `<p style="padding:20px; text-align:center; color:var(--text-secondary);">Nenhum usuário encontrado.</p>`;
+                return;
+            }
+            let tabela = `<table class="tabela-usuarios">
                 <thead>
                     <tr>
                         <th style="width:60px; text-align:center;">Foto</th>
@@ -88,12 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                 </thead>
                 <tbody>`;
-            clientes.forEach(c => {
+            lista.forEach(c => {
                 const livro = mapaAluguel[c.id] || '—';
                 const fotoHtml = c.foto 
                     ? `<img src="${c.foto}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; display:block; margin:0 auto;">` 
-                    : `<div style="width:36px; height:36px; border-radius:50%; background:var(--bg-sidebar); margin:0 auto; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); font-size:0.8rem;">📷</div>`;
-                html += `<tr>
+                    : `<div style="width:36px; height:36px; border-radius:50%; background:var(--bg-sidebar); margin:0 auto; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); font-size:0.8rem;">Foto</div>`;
+                tabela += `<tr>
                     <td style="text-align:center; padding:4px;">${fotoHtml}</td>
                     <td style="text-align:left; font-weight:500;">${c.nome}</td>
                     <td style="text-align:left; color:var(--text-secondary);">${c.apelido || '—'}</td>
@@ -105,10 +117,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                 </tr>`;
             });
-            html += `</tbody></table>`;
+            tabela += `</tbody></table>`;
+            container.innerHTML = tabela;
         }
-        html += `</div>`;
-        contentArea.innerHTML = html;
+
+        renderizarTabelaUsuarios(clientes);
+
+        // Filtro de pesquisa
+        const inputPesquisa = document.getElementById('pesquisa-usuarios');
+        const btnLimpar = document.getElementById('btn-limpar-pesquisa-usuarios');
+
+        inputPesquisa.addEventListener('input', function() {
+            const termo = this.value.trim().toLowerCase();
+            if (termo === '') {
+                renderizarTabelaUsuarios(clientes);
+                return;
+            }
+            const filtrados = clientes.filter(c => 
+                c.nome.toLowerCase().includes(termo) ||
+                (c.apelido && c.apelido.toLowerCase().includes(termo)) ||
+                c.cpf.replace(/\D/g, '').includes(termo.replace(/\D/g, ''))
+            );
+            renderizarTabelaUsuarios(filtrados);
+        });
+
+        btnLimpar.addEventListener('click', () => {
+            inputPesquisa.value = '';
+            renderizarTabelaUsuarios(clientes);
+            inputPesquisa.focus();
+        });
 
         document.getElementById('btn-novo-usuario').addEventListener('click', renderCadastroUsuario);
     }
@@ -187,10 +224,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 await aguardarBanco();
                 const cpfFormatado = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
                 const existente = await db.clientes.where('cpf').equals(cpfFormatado).first();
-                span.textContent = existente ? ' CPF já cadastrado.' : 'CPF disponível.';
+                span.textContent = existente ? 'CPF já cadastrado.' : 'CPF disponível.';
                 span.style.color = existente ? '#e74c3c' : '#27ae60';
             } else {
-                span.textContent = cpfBruto.length > 0 ? ' CPF inválido.' : '';
+                span.textContent = cpfBruto.length > 0 ? 'CPF inválido.' : '';
                 span.style.color = '#e74c3c';
             }
         });
@@ -201,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!span || !apelido) { if (span) span.textContent = ''; return; }
             await aguardarBanco();
             const existente = await db.clientes.where('apelido').equalsIgnoreCase(apelido).first();
-            span.textContent = existente ? ' Apelido já está em uso.' : 'Apelido disponível.';
+            span.textContent = existente ? 'Apelido já está em uso.' : 'Apelido disponível.';
             span.style.color = existente ? '#e74c3c' : '#27ae60';
         });
 
@@ -315,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h3 style="margin:0;">Catálogo de Livros</h3>
                     <div style="display:flex; gap:8px; flex:1; max-width:400px; min-width:180px;">
                         <input type="text" id="pesquisa-catalogo" placeholder="Pesquisar livro..." style="flex:1; padding:8px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--input-bg); color:var(--text-primary);">
-                        <button id="btn-limpar-pesquisa" style="padding:8px 12px; background:var(--btn-danger); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">✕</button>
+                        <button id="btn-limpar-pesquisa" style="padding:8px 12px; background:var(--btn-danger); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">×</button>
                     </div>
                 </div>
                 <div id="tabela-catalogo-container"></div>
@@ -416,7 +453,6 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         contentArea.innerHTML = html;
 
-        // Pré-visualização da capa
         const inputCapa = document.getElementById('novo-capa');
         const inputUpload = document.getElementById('novo-capa-upload');
         const previewContainer = document.getElementById('preview-novo-capa-container');
@@ -500,6 +536,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionStorage.getItem('usuario') || 'Bibliotecário'
             );
 
+            const solicitacoesPendentes = await db.solicitacoes
+                .where('titulo').equals(titulo)
+                .and(s => s.status === 'pendente')
+                .toArray();
+
+            for (const sol of solicitacoesPendentes) {
+                await criarNotificacao(
+                    sol.usuario_id,
+                    `O livro "${titulo}" que você solicitou foi adicionado ao catálogo!`,
+                    'solicitacao_atendida'
+                );
+                await db.solicitacoes.update(sol.id, { status: 'atendido' });
+            }
+            if (solicitacoesPendentes.length > 0) {
+                console.log(`${solicitacoesPendentes.length} usuários notificados sobre a adição do livro "${titulo}".`);
+            }
+
             notificar(`Livro "${titulo}" adicionado com sucesso.`);
             document.getElementById('form-adicionar-livro').reset();
             document.getElementById('preview-novo-capa-container').style.display = 'none';
@@ -536,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div><label>Classificação</label><input type="text" id="edit-classificacao" value="${livro.classificacao || ''}"></div>
                     <div><label>Sinopse</label><textarea id="edit-sinopse" rows="4">${livro.sinopse || ''}</textarea></div>
                     <div style="border-top:1px solid #eee; padding-top:16px;">
-                        <label>📷 URL da capa</label>
+                        <label>URL da capa</label>
                         <input type="text" id="edit-capa" value="${livro.capa || ''}" placeholder="https://exemplo.com/capa.jpg">
                         <input type="file" id="edit-capa-upload" accept="image/*" style="margin-top:8px;">
                         <div id="preview-capa-container" style="margin-top:8px; ${livro.capa ? '' : 'display:none;'}">
@@ -544,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <button type="button" onclick="document.getElementById('edit-capa').value=''; document.getElementById('preview-capa-container').style.display='none';" style="background:#e74c3c; color:#fff; border:none; padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:8px;">Remover</button>
                         </div>
                     </div>
-                    <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600;">💾 Salvar</button>
+                    <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600;">Salvar</button>
                     <button type="button" onclick="this.closest('#modal-editar-livro').remove()" style="background:#95a5a6; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600; margin-left:8px;">Cancelar</button>
                 </form>
             </div>
@@ -645,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCatalogo();
     };
 
-    // 5. ALUGAR (admin direto)
+    // 5. ALUGAR
     async function renderAlugar() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -730,7 +783,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 6. DEVOLVER (admin direto)
+    // 6. DEVOLVER
     async function renderDevolver() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -824,25 +877,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionStorage.getItem('usuario') || 'Bibliotecário'
             );
 
+            const livro = await db.livros.where('titulo').equals(aluguel.livro).first();
+            if (livro) {
+                const avisosPendentes = await db.avisos_disponibilidade
+                    .where('livro_id').equals(livro.id)
+                    .and(a => a.status === 'pendente')
+                    .toArray();
+                for (const aviso of avisosPendentes) {
+                    await criarNotificacao(
+                        aviso.usuario_id,
+                        `O livro "${aluguel.livro}" que você estava aguardando está disponível para aluguel!`,
+                        'disponibilidade'
+                    );
+                    await db.avisos_disponibilidade.update(aviso.id, { status: 'concluido' });
+                }
+                if (avisosPendentes.length > 0) {
+                    console.log(`${avisosPendentes.length} usuários notificados sobre a disponibilidade do livro "${aluguel.livro}".`);
+                }
+            }
+
             notificar(`Livro "${aluguel.livro}" devolvido com sucesso! Multa: R$ ${multa.toFixed(2)}.`);
             renderDevolver();
         });
     }
 
     // ================================================================
-    // 7. SOLICITAÇÕES (unificadas: livros + aluguel/devolução)
+    // 7. SOLICITAÇÕES
     // ================================================================
     async function renderSolicitacoes() {
         await aguardarBanco();
 
-        // Busca solicitações de livros (sugestões de novos títulos)
         const solicitacoesLivros = await db.solicitacoes.toArray();
         const clientes = await db.clientes.toArray();
         const mapaClientes = {};
         clientes.forEach(c => { mapaClientes[c.id] = { nome: c.nome, apelido: c.apelido }; });
         solicitacoesLivros.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-        // Busca solicitações de aluguel/devolução pendentes
         const solicitacoesAluguel = await db.solicitacoes_aluguel
             .where('status').equals('pendente')
             .toArray();
@@ -860,22 +930,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = new Date(s.data).toLocaleDateString('pt-BR');
                 const statusTexto = s.status === 'atendido' ? 'Atendido' : 'Pendente';
                 const statusClass = s.status === 'atendido' ? 'status-ativo' : '';
+                
+                const acoes = s.status === 'pendente' 
+                    ? `<button onclick="adicionarLivroPorSolicitacao(${s.id})" style="background:#3498db; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Adicionar ao Catálogo</button>
+                    <button onclick="atenderSolicitacao(${s.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Atender</button>`
+                    : '—';
+                
                 html += `<tr>
                     <td>${nomeUsuario}</td>
                     <td style="cursor:pointer; color:var(--btn-primary); text-decoration:underline;" onclick="verDetalhesSolicitacao(${s.id})">${s.titulo}</td>
                     <td>${s.autor || '—'}</td>
                     <td>${data}</td>
                     <td class="${statusClass}">${statusTexto}</td>
-                    <td>
-                        ${s.status === 'pendente' ? `<button onclick="atenderSolicitacao(${s.id})" style="background:#27ae60; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Atender</button>` : '—'}
-                    </td>
+                    <td>${acoes}</td>
                 </tr>`;
             });
             html += `</tbody></table>`;
         }
         html += `</div>`;
 
-        // ===== SEÇÃO DE SOLICITAÇÕES DE ALUGUEL/DEVOLUÇÃO =====
         html += `<div class="card"><h3>Solicitações de Aluguel/Devolução (Pendentes)</h3>`;
         if (solicitacoesAluguel.length === 0) {
             html += `<p>Nenhuma solicitação pendente.</p>`;
@@ -914,140 +987,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
         contentArea.innerHTML = html;
 
-        // ===== FUNÇÕES DE ACEITAR/RECUSAR (globais) =====
-        window.aceitarSolicitacaoAluguel = async function(id) {
-            const sol = await db.solicitacoes_aluguel.get(id);
-            if (!sol) return;
+        window.adicionarLivroPorSolicitacao = async function(id) {
+            const solicitacao = await db.solicitacoes.get(id);
+            if (!solicitacao) return;
 
-            const bibliotecario = sessionStorage.getItem('usuario') || 'Bibliotecário';
+            sessionStorage.setItem('solicitacao_titulo', solicitacao.titulo || '');
+            sessionStorage.setItem('solicitacao_autor', solicitacao.autor || '');
+            sessionStorage.setItem('solicitacao_editora', solicitacao.editora || '');
+            sessionStorage.setItem('solicitacao_comentario', solicitacao.comentario || '');
+            sessionStorage.setItem('solicitacao_id', solicitacao.id);
 
-            if (sol.tipo === 'aluguel') {
-                // Verifica se o livro ainda está disponível
-                const livroAlugado = await db.alugueis.where('livro').equals(sol.livro).filter(a => a.status === 'ativo').first();
-                if (livroAlugado) {
-                    notificar('Este livro já foi alugado por outro usuário.', 'erro');
-                    return;
-                }
+            const link = document.querySelector('a[data-section="adicionar-livros"]');
+            if (link) {
+                link.click();
+                setTimeout(() => {
+                    preencherFormularioAdicionarLivro();
+                }, 200);
+            } else {
+                notificar('Seção "Adicionar Livros" não encontrada.', 'erro');
+            }
+        };
 
-                // Cria o aluguel
-                await db.alugueis.add({
-                    cliente_id: sol.cliente_id,
-                    livro: sol.livro,
-                    data_locacao: sol.data_locacao,
-                    data_devolucao_prevista: sol.data_devolucao_prevista,
-                    status: 'ativo'
-                });
+        function preencherFormularioAdicionarLivro() {
+            const titulo = sessionStorage.getItem('solicitacao_titulo');
+            const autor = sessionStorage.getItem('solicitacao_autor');
+            const editora = sessionStorage.getItem('solicitacao_editora');
+            const comentario = sessionStorage.getItem('solicitacao_comentario');
 
-                // Notifica o usuário
-                await criarNotificacao(
-                    sol.cliente_id,
-                    `Seu pedido para alugar o livro "${sol.livro}" foi aceito. Vá até a Booksy mais próxima e retire seu livro.`,
-                    'aluguel'
-                );
+            if (!titulo && !autor) return;
 
-                // Log
-                await registrarLog(
-                    'solicitacao_aceita',
-                    sol.cliente_id,
-                    sol.cliente_nome,
-                    sol.livro,
-                    bibliotecario
-                );
+            const inputTitulo = document.getElementById('novo-titulo');
+            const inputAutor = document.getElementById('novo-autor');
+            const inputEditora = document.getElementById('novo-editora');
+            const textareaSinopse = document.getElementById('novo-sinopse');
 
-            } else if (sol.tipo === 'devolucao') {
-                // Busca o aluguel ativo correspondente
-                const aluguel = await db.alugueis
-                    .where('cliente_id').equals(sol.cliente_id)
-                    .and(a => a.livro === sol.livro && a.status === 'ativo')
-                    .first();
-
-                if (!aluguel) {
-                    notificar('Aluguel não encontrado para este livro.', 'erro');
-                    return;
-                }
-
-                // Calcula multa novamente (por segurança)
-                const hoje = new Date().toISOString().split('T')[0];
-                let diasAtraso = 0, multa = 0;
-                if (aluguel.data_devolucao_prevista) {
-                    const prevista = new Date(aluguel.data_devolucao_prevista + 'T00:00:00');
-                    const real = new Date(hoje + 'T00:00:00');
-                    if (real > prevista) {
-                        const diffMs = real - prevista;
-                        diasAtraso = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                        multa = diasAtraso * MULTA_POR_DIA;
-                    }
-                }
-
-                await db.alugueis.update(aluguel.id, {
-                    status: 'devolvido',
-                    data_devolucao_real: hoje,
-                    dias_atraso: diasAtraso,
-                    multa: multa
-                });
-
-                // Notifica o usuário
-                const multaMsg = multa > 0 ? ` Lembre-se de pagar a multa de R$ ${multa.toFixed(2)}.` : '';
-                await criarNotificacao(
-                    sol.cliente_id,
-                    `Seu pedido para devolver o livro "${sol.livro}" foi aceito.${multaMsg}`,
-                    'devolucao'
-                );
-
-                // Log
-                await registrarLog(
-                    'solicitacao_aceita',
-                    sol.cliente_id,
-                    sol.cliente_nome,
-                    sol.livro,
-                    bibliotecario
-                );
+            if (inputTitulo) inputTitulo.value = titulo || '';
+            if (inputAutor) inputAutor.value = autor || '';
+            if (inputEditora) inputEditora.value = editora || '';
+            if (textareaSinopse) {
+                let sinopse = comentario ? `Solicitado por usuário: "${comentario}"` : '';
+                textareaSinopse.value = sinopse;
             }
 
-            // Atualiza status da solicitação
-            await db.solicitacoes_aluguel.update(id, {
-                status: 'aceito',
-                bibliotecario: bibliotecario
-            });
-
-            notificar('Solicitação aceita com sucesso!');
-            renderSolicitacoes(); // recarrega
-        };
-
-        window.recusarSolicitacaoAluguel = async function(id) {
-            const sol = await db.solicitacoes_aluguel.get(id);
-            if (!sol) return;
-
-            const bibliotecario = sessionStorage.getItem('usuario') || 'Bibliotecário';
-
-            // Notifica o usuário
-            await criarNotificacao(
-                sol.cliente_id,
-                ` Seu pedido para ${sol.tipo === 'aluguel' ? 'alugar' : 'devolver'} o livro "${sol.livro}" foi recusado.`,
-                'sistema'
-            );
-
-            // Log
-            await registrarLog(
-                'solicitacao_recusada',
-                sol.cliente_id,
-                sol.cliente_nome,
-                sol.livro,
-                bibliotecario
-            );
-
-            // Atualiza status
-            await db.solicitacoes_aluguel.update(id, {
-                status: 'recusado',
-                bibliotecario: bibliotecario
-            });
-
-            notificar('Solicitação recusada.');
-            renderSolicitacoes();
-        };
+            notificar('Dados da solicitação carregados! Você pode editá-los antes de adicionar.');
+        }
     }
 
-    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS (sugestões) =====
+    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS =====
     window.verDetalhesSolicitacao = async function(id) {
         const solicitacao = await db.solicitacoes.get(id);
         if (!solicitacao) return;
@@ -1067,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.innerHTML = `
             <div style="background:#fff; padding:24px; border-radius:8px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0;">📖 Detalhes da Solicitação</h3>
+                    <h3 style="margin:0;">Detalhes da Solicitação</h3>
                     <button onclick="this.closest('#modal-detalhes-solicitacao').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary);">&times;</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
@@ -1106,12 +1092,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         await db.solicitacoes.update(id, { resposta: resposta });
-        // Cria notificação para o usuário
         const solicitacao = await db.solicitacoes.get(id);
         if (solicitacao) {
             await criarNotificacao(
                 solicitacao.usuario_id,
-                `📬 Resposta para sua solicitação de livro "${solicitacao.titulo}": ${resposta}`,
+                `Resposta para sua solicitação de livro "${solicitacao.titulo}": ${resposta}`,
                 'sistema'
             );
         }

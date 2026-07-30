@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// user-app.js – Painel do usuário (com carrossel de destaque e editar perfil integrado)
+// user-app.js – Painel do usuário (com carrossel, posts, avise-me)
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="livro-card" data-titulo="${livro.titulo}" style="cursor:pointer;">
             <div class="capa">
                 <img src="${capa}" alt="${livro.titulo}" onerror="this.style.display='none'; this.parentElement.querySelector('.placeholder').style.display='flex';">
-                <div class="placeholder" style="display:none;">📚</div>
+                <div class="placeholder" style="display:none;">Capa</div>
             </div>
             <div class="info">
                 <h4>${livro.titulo}</h4>
@@ -186,49 +186,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const TAMANHO_GRUPO = 4;
 
     async function renderizarCarrossel(container) {
-        // Limpa intervalo anterior
         if (intervaloCarrossel) {
             clearInterval(intervaloCarrossel);
             intervaloCarrossel = null;
         }
 
-        // Busca todos os livros
         const livros = await db.livros.toArray();
         if (livros.length === 0) {
             container.innerHTML = '<p style="color: var(--text-secondary);">Nenhum livro disponível.</p>';
             return;
         }
 
-        // Embaralha e define o grupo inicial
         livrosCarrossel = livros.sort(() => 0.5 - Math.random());
         const totalLivros = livrosCarrossel.length;
         const grupos = [];
         const tamGrupo = TAMANHO_GRUPO || 4;
 
-        // Cria grupos de 4 livros
         for (let i = 0; i < totalLivros; i += tamGrupo) {
             const grupo = livrosCarrossel.slice(i, i + tamGrupo);
             if (grupo.length === tamGrupo) grupos.push(grupo);
         }
-        // Se sobrar menos de 4, adiciona ao último grupo ou descarta? Vamos descartar ou completar com os primeiros? Melhor descartar ou adicionar ao final.
         if (grupos.length === 0) {
-            // Se menos de 4 livros, mostra todos em um grupo
             grupos.push(livrosCarrossel);
         }
 
         let grupoAtual = 0;
         const totalGrupos = grupos.length;
 
-        // Cria o HTML do carrossel
         let html = `<div class="carrossel-wrapper"><div class="carrossel-track" id="carrossel-track">`;
-        // Para efeito infinito, duplicamos o primeiro grupo no final
-        const gruposParaRender = [...grupos, grupos[0]]; // clone para loop infinito
+        const gruposParaRender = [...grupos, grupos[0]];
         gruposParaRender.forEach(grupo => {
             grupo.forEach(livro => {
-                // Temporariamente, não sabemos se está disponível, vamos buscar depois
                 html += `<div class="livro-card" data-titulo="${livro.titulo}" style="flex:0 0 180px; margin-right:16px; cursor:pointer;">`;
-                // Vamos colocar placeholder, depois preenchemos com a função gerarCard
-                html += gerarCardLivro(livro, true); // true temporário
+                html += gerarCardLivro(livro, true);
                 html += `</div>`;
             });
         });
@@ -236,16 +226,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = html;
 
-        // Agora precisamos atualizar os status de disponibilidade
         const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
         const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
-        // Atualiza cada card com o status correto
         document.querySelectorAll('#carrossel-track .livro-card').forEach(card => {
             const titulo = card.dataset.titulo;
             const tituloSimples = titulo.split(' - ')[0].trim().toLowerCase();
             const disponivel = !alugadosSet.has(tituloSimples);
-            // Atualiza o conteúdo interno com o status correto
-            // Podemos reconstruir o card ou apenas atualizar o span de status
             const statusSpan = card.querySelector('.status');
             if (statusSpan) {
                 statusSpan.textContent = disponivel ? 'Disponível' : 'Alugado';
@@ -253,22 +239,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Adiciona listeners
         document.querySelectorAll('#carrossel-track .livro-card').forEach(card => {
             card.addEventListener('click', () => abrirLivro(card.dataset.titulo));
         });
 
-        // Configura o track
         const track = document.getElementById('carrossel-track');
-        const larguraCard = 180 + 16; // largura + margem
+        const larguraCard = 180 + 16;
         const totalCards = gruposParaRender.reduce((acc, g) => acc + g.length, 0);
         const larguraTotal = totalCards * larguraCard;
         track.style.width = `${larguraTotal}px`;
 
-        // Função para mover para um grupo específico
         function moverParaGrupo(indice) {
             if (!track) return;
-            // A posição é calculada com base no índice do grupo
             let posicao = 0;
             for (let i = 0; i < indice; i++) {
                 posicao += grupos[i].length * larguraCard;
@@ -276,23 +258,17 @@ document.addEventListener('DOMContentLoaded', () => {
             track.style.transform = `translateX(-${posicao}px)`;
         }
 
-        // Inicia no grupo 0
         moverParaGrupo(0);
 
-        // Avança para o próximo grupo a cada 5 segundos
         let posicaoAtual = 0;
         const avancar = () => {
             posicaoAtual++;
             if (posicaoAtual >= totalGrupos) {
-                // Último grupo é o clone do primeiro, então depois de chegar ao clone, voltamos ao início sem transição
-                // Usamos setTimeout para resetar a posição sem animação
                 track.style.transition = 'none';
                 posicaoAtual = 0;
                 moverParaGrupo(0);
-                // Força reflow
                 track.offsetHeight;
                 track.style.transition = 'transform 0.8s ease-in-out';
-                // Aguarda um pequeno intervalo e depois avança para o próximo (grupo 1)
                 setTimeout(() => {
                     posicaoAtual = 1;
                     moverParaGrupo(1);
@@ -302,11 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Inicia intervalo
         intervaloCarrossel = setInterval(avancar, 5000);
-
-        // Para evitar conflitos, se o container for destruído, limpar o intervalo
-        // Podemos adicionar um observer ou apenas confiar que será limpo na troca de aba
     }
 
     // ================================================================
@@ -379,7 +351,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // RENDERIZAR COMUNIDADE (coluna direita)
+    // FUNÇÃO PARA REGISTRAR AVISO DE DISPONIBILIDADE
+    // ================================================================
+    async function registrarAvisoDisponibilidade(livroId) {
+        try {
+            await aguardarBanco();
+            const avisoExistente = await db.avisos_disponibilidade
+                .where('usuario_id').equals(usuarioId)
+                .and(a => a.livro_id === livroId && a.status === 'pendente')
+                .first();
+            if (avisoExistente) {
+                notificar('Você já está inscrito para ser avisado sobre este livro.', 'aviso');
+                return false;
+            }
+            await db.avisos_disponibilidade.add({
+                usuario_id: usuarioId,
+                livro_id: livroId,
+                status: 'pendente',
+                data_criacao: new Date().toISOString()
+            });
+            notificar('Você será notificado quando este livro estiver disponível!');
+            return true;
+        } catch (err) {
+            console.error('Erro ao registrar aviso:', err);
+            notificar('Erro ao registrar aviso.', 'erro');
+            return false;
+        }
+    }
+
+    // ================================================================
+    // RENDERIZAR COMUNIDADE (mescla avaliações antigas e novos posts)
     // ================================================================
     async function renderComunidade() {
         try {
@@ -387,46 +388,104 @@ document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('comunidade-container');
             if (!container) return;
 
+            // Busca avaliações da tabela 'avaliacoes'
             const avaliacoes = await db.avaliacoes.toArray();
-            const clientes = await db.clientes.toArray();
-            const mapaClientes = {};
-            clientes.forEach(c => {
-                mapaClientes[c.id] = {
-                    nome: c.nome,
-                    apelido: c.apelido || c.nome,
-                    foto: c.foto || ''
+            // Busca posts da tabela 'posts'
+            const posts = await db.posts.toArray();
+
+            // Combina e transforma em um único array com estrutura padronizada
+            let itens = [];
+
+            // Adiciona avaliações
+            avaliacoes.forEach(av => {
+                itens.push({
+                    tipo: 'avaliacao',
+                    usuario_id: av.usuario_id,
+                    livro: av.livro,
+                    nota: av.nota,
+                    comentario: av.comentario,
+                    data: av.data,
+                    data_criacao: av.data // para ordenação
+                });
+            });
+
+            // Adiciona posts
+            posts.forEach(post => {
+                itens.push({
+                    tipo: 'post',
+                    usuario_id: post.usuario_id,
+                    livro_id: post.livro_id,
+                    texto: post.texto,
+                    nota: post.nota || null,
+                    data: post.data_criacao,
+                    data_criacao: post.data_criacao
+                });
+            });
+
+            // Ordena por data (mais recentes primeiro)
+            itens.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
+
+            // Limita a 10 itens
+            itens = itens.slice(0, 10);
+
+            // Busca informações dos usuários e livros
+            const usuarios = await db.clientes.toArray();
+            const livros = await db.livros.toArray();
+            const mapaUsuarios = {};
+            usuarios.forEach(u => {
+                mapaUsuarios[u.id] = {
+                    nome: u.nome,
+                    apelido: u.apelido || u.nome,
+                    foto: u.foto || ''
                 };
             });
-            avaliacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+            const mapaLivros = {};
+            livros.forEach(l => { mapaLivros[l.id] = l.titulo; });
 
-            if (avaliacoes.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);">Ainda não há avaliações. Seja o primeiro!</p>';
+            if (itens.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);">Ainda não há avaliações ou posts. Seja o primeiro a contribuir!</p>';
                 return;
             }
 
             let html = '';
-            avaliacoes.slice(0, 10).forEach(av => {
-                const user = mapaClientes[av.usuario_id] || { nome: 'Anônimo', apelido: 'Anônimo', foto: '' };
+            itens.forEach(item => {
+                const user = mapaUsuarios[item.usuario_id] || { nome: 'Anônimo', apelido: 'Anônimo', foto: '' };
                 const fotoUrl = user.foto || 'static/src/avatares/usuario.jpg';
                 const nomeExibicao = user.apelido || user.nome;
+                const data = new Date(item.data_criacao);
+                const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+                let conteudo = '';
+                if (item.tipo === 'avaliacao') {
+                    // Avaliação antiga
+                    const livroNome = item.livro || 'Livro não especificado';
+                    const nota = item.nota ? `⭐ ${item.nota}/5` : '';
+                    conteudo = `
+                        <div class="avaliacao-livro">${livroNome} ${nota}</div>
+                        <div class="avaliacao-texto">${item.comentario || 'Sem comentário'}</div>
+                    `;
+                } else {
+                    // Post novo
+                    const livroNome = item.livro_id ? mapaLivros[item.livro_id] : null;
+                    const nota = item.nota ? `⭐ ${item.nota}/5` : '';
+                    conteudo = `
+                        ${livroNome ? `<div class="avaliacao-livro">${livroNome} ${nota}</div>` : ''}
+                        <div class="avaliacao-texto">${item.texto}</div>
+                    `;
+                }
+
                 html += `
                 <div class="avaliacao-item">
                     <div class="avaliacao-usuario">
                         <img src="${fotoUrl}" alt="${nomeExibicao}" onerror="this.src='static/src/avatares/usuario.jpg'">
                         <strong>${nomeExibicao}</strong>
-                        <span style="margin-left:auto; font-size:0.7rem; color:var(--text-secondary);">${av.data}</span>
+                        <span style="margin-left:auto; font-size:0.7rem; color:var(--text-secondary);">${dataStr}</span>
                     </div>
-                    <div class="avaliacao-livro">${av.livro}</div>
-                    <div class="avaliacao-nota">⭐ ${av.nota}/5</div>
-                    <div class="avaliacao-texto">${av.comentario || 'Sem comentário'}</div>
+                    ${conteudo}
                 </div>`;
             });
-
-            if (avaliacoes.length > 10) {
-                html += `<p style="text-align:center; color:var(--text-secondary); font-size:0.8rem;">+ ${avaliacoes.length - 10} outras avaliações</p>`;
-            }
-
             container.innerHTML = html;
+
         } catch (err) {
             console.error('Erro ao renderizar comunidade:', err);
             document.getElementById('comunidade-container').innerHTML = '<p>Erro ao carregar avaliações.</p>';
@@ -462,7 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (intervaloComunidade) clearInterval(intervaloComunidade);
         intervaloComunidade = setInterval(() => {
-            renderComunidade();
+            const sectionAtiva = document.querySelector('.menu-user a.active');
+            if (sectionAtiva && sectionAtiva.dataset.section === 'inicio') {
+                renderComunidade();
+            }
         }, 60000);
     }
 
@@ -487,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function renderInicio() {
         try {
             await aguardarBanco();
-            console.log('📌 Renderizando página inicial...');
+            console.log('Renderizando página inicial...');
 
             // ===== DESTAQUES =====
             let html = `
@@ -513,8 +575,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="card-user">
                 <h3>Todos os Livros</h3>
                 <div style="display:flex; gap:8px; margin-bottom:16px;">
-                    <input type="text" id="pesquisa-biblioteca" placeholder="🔍 Pesquisar livro..." style="flex:1; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--bg-card); color:var(--text-primary);">
-                    <button id="btn-limpar-pesquisa-biblioteca" style="padding:8px 16px; background:#e74c3c; color:#fff; border:none; border-radius:6px; cursor:pointer;">✕</button>
+                    <input type="text" id="pesquisa-biblioteca" placeholder="Pesquisar livro..." style="flex:1; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-size:0.95rem; background:var(--bg-card); color:var(--text-primary);">
+                    <button id="btn-limpar-pesquisa-biblioteca" style="padding:8px 16px; background:#e74c3c; color:#fff; border:none; border-radius:6px; cursor:pointer;">×</button>
                 </div>
                 <div id="grade-biblioteca" class="grade-livros"></div>
             </div>`;
@@ -689,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Erro ao renderizar meus livros:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar seus livros.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar seus livros.</p>';
         }
     }
 
@@ -727,7 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let confirmar = true;
             if (multa > 0) {
-                confirmar = confirm(`⚠️ Atenção! Esta devolução está com ${diasAtraso} dia(s) de atraso. Multa de R$ ${multa.toFixed(2)}. Deseja continuar?`);
+                confirmar = confirm(`Atenção! Esta devolução está com ${diasAtraso} dia(s) de atraso. Multa de R$ ${multa.toFixed(2)}. Deseja continuar?`);
             } else {
                 confirmar = confirm('Confirma a solicitação de devolução do livro "' + aluguel.livro + '"?');
             }
@@ -766,15 +828,33 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ================================================================
-    // SEÇÃO: PERFIL (com botão para editar)
+    // FUNÇÃO PARA CRIAR POST (avaliação)
+    // ================================================================
+    async function criarPost(texto, livroId = null, nota = null) {
+        try {
+            await aguardarBanco();
+            await db.posts.add({
+                usuario_id: usuarioId,
+                livro_id: livroId,
+                texto: texto.trim(),
+                nota: nota,
+                data_criacao: new Date().toISOString()
+            });
+            notificar('Avaliação publicada com sucesso!');
+            renderPerfil();
+        } catch (err) {
+            console.error('Erro ao criar post:', err);
+            notificar('Erro ao publicar avaliação.', 'erro');
+        }
+    }
+
+    // ================================================================
+    // SEÇÃO: PERFIL (com posts e formulário)
     // ================================================================
     async function renderPerfil() {
         try {
             await aguardarBanco();
             if (!usuarioAtual) await carregarUsuario();
-
-            const avaliacoes = await db.avaliacoes.where('usuario_id').equals(usuarioId).toArray();
-            avaliacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
 
             const fotoUrl    = usuarioAtual.foto || 'static/src/avatares/usuario.jpg';
             const bio        = usuarioAtual.bio || 'Nenhuma bio cadastrada.';
@@ -783,6 +863,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 : 'Não informado';
             const lendoAgora = usuarioAtual.lendo_agora || 'Nenhum livro no momento.';
             const apelido    = usuarioAtual.apelido || '';
+
+            // Busca os posts do usuário (avaliações) - ordenados do mais recente para o mais antigo
+            const posts = (await db.posts.where('usuario_id').equals(usuarioId).toArray())
+                .sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
+
+            // Busca todos os livros para o select
+            const livros = await db.livros.toArray();
+            const livrosMap = {};
+            livros.forEach(l => { livrosMap[l.id] = l.titulo; });
 
             let html = `
             <div class="card-user" style="text-align:center;">
@@ -800,23 +889,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Bio:</strong> ${bio}</p>
                 <p><strong>Nascimento:</strong> ${nascimento}</p>
                 <p><strong>Lendo agora:</strong> ${lendoAgora}</p>
-            </div>`;
+            </div>
+            <div class="card-user">
+                <h3>Criar avaliação</h3>
+                <form id="form-criar-post" class="form-user" style="max-width:100%;">
+                    <div class="full-width">
+                        <label for="post-texto">Sua avaliação sobre o livro</label>
+                        <textarea id="post-texto" rows="3" placeholder="Escreva sua opinião..." style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary);"></textarea>
+                    </div>
+                    <div>
+                        <label for="post-livro">Livro relacionado</label>
+                        <select id="post-livro" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                            <option value="">Selecione um livro</option>
+                            ${livros.map(l => `<option value="${l.id}">${l.titulo}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="post-nota">Nota (1-5)</label>
+                        <input type="number" id="post-nota" min="1" max="5" placeholder="5" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                    </div>
+                    <div class="full-width">
+                        <button type="submit" class="btn-user">Publicar avaliação</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-user">
+                <h3>Minhas Avaliações</h3>`;
 
-            html += '<div class="card-user"><h3> Minhas Avaliações</h3>';
-            if (avaliacoes.length === 0) {
-                html += '<p>Você ainda não fez nenhuma avaliação.</p>';
+            if (posts.length === 0) {
+                html += `<p style="color:var(--text-secondary);">Você ainda não fez nenhuma avaliação.</p>`;
             } else {
-                avaliacoes.forEach(av => {
+                posts.forEach(post => {
+                    const data = new Date(post.data_criacao);
+                    const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                    const livroNome = post.livro_id ? livrosMap[post.livro_id] : null;
+                    const nota = post.nota || '—';
                     html += `
-                    <div style="background:var(--bg-sidebar); padding:12px 16px; border-radius:8px; margin-bottom:10px; border-left:3px solid var(--accent-color);">
-                        <p><strong>${av.livro}</strong> - ★ ${av.nota}/5</p>
-                        <p style="color:var(--text-secondary); font-size:0.9rem;">${av.comentario || 'Sem comentário'}</p>
-                        <small style="color:var(--text-secondary);">${av.data}</small>
+                    <div style="background:var(--bg-sidebar); padding:12px 16px; border-radius:8px; margin-bottom:12px; border-left:3px solid var(--accent-color);">
+                        ${livroNome ? `<p style="font-weight:600; color:var(--accent-color);">${livroNome} ${nota !== '—' ? `- ★ ${nota}/5` : ''}</p>` : ''}
+                        <p style="margin:4px 0; color:var(--text-primary);">${post.texto}</p>
+                        <small style="color:var(--text-secondary);">${dataStr}</small>
                     </div>`;
                 });
             }
-            html += '</div>';
+            html += `</div>`;
+
             contentLeft.innerHTML = html;
+
+            // Listener do formulário de post
+            document.getElementById('form-criar-post').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const texto = document.getElementById('post-texto').value.trim();
+                const livroId = document.getElementById('post-livro').value;
+                const nota = parseInt(document.getElementById('post-nota').value) || null;
+
+                if (!texto) {
+                    notificar('Escreva algo para publicar.', 'erro');
+                    return;
+                }
+                if (nota && (nota < 1 || nota > 5)) {
+                    notificar('Nota inválida (use 1 a 5).', 'erro');
+                    return;
+                }
+
+                await criarPost(texto, livroId || null, nota);
+            });
+
         } catch (err) {
             console.error('Erro ao renderizar perfil:', err);
             contentLeft.innerHTML = '<p>Erro ao carregar perfil.</p>';
@@ -824,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: EDITAR PERFIL (agora acessível via botão no perfil)
+    // SEÇÃO: EDITAR PERFIL (acessível via botão no perfil)
     // ================================================================
     window.renderEditarPerfil = async function() {
         try {
@@ -866,8 +1004,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <small style="color:var(--text-secondary);">Mínimo 4 caracteres</small>
                     </div>
                 </div>
-                <button type="button" id="btn-salvar-perfil" class="btn-user" style="margin-top:30px; width:100%;">💾 Salvar alterações</button>
-                <button type="button" onclick="renderPerfil()" style="margin-top:10px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:8px 16px; border-radius:6px; cursor:pointer; width:100%;">↩ Voltar</button>
+                <button type="button" id="btn-salvar-perfil" class="btn-user" style="margin-top:30px; width:100%;">Salvar alterações</button>
+                <button type="button" onclick="renderPerfil()" style="margin-top:10px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:8px 16px; border-radius:6px; cursor:pointer; width:100%;">Voltar</button>
             </div>`;
             contentLeft.innerHTML = html;
 
@@ -912,11 +1050,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Atualiza o título da página para "Editar Perfil"
             sectionTitle.textContent = 'Editar Perfil';
         } catch (err) {
             console.error('Erro ao renderizar editar perfil:', err);
-            contentLeft.innerHTML = '<p>⚠️ Erro ao carregar edição de perfil.</p>';
+            contentLeft.innerHTML = '<p>Erro ao carregar edição de perfil.</p>';
         }
     };
 
@@ -1070,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + BOTÃO ALUGAR)
+    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + BOTÕES)
     // ================================================================
     window.abrirLivro = async (titulo) => {
         try {
@@ -1124,7 +1261,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${disponivel ? `
                                 <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
                             ` : `
-                                <p style="margin-top: 16px; color: #e74c3c; text-align:center;">Este livro não está disponível no momento.</p>
+                                <button id="btn-avise-me" style="margin-top: 16px; background: #f39c12; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Avise-me quando disponível</button>
+                                <p style="margin-top: 8px; color: #e74c3c; text-align:center; font-size:0.9rem;">Este livro não está disponível no momento.</p>
                             `}
                         </div>
                     </div>
@@ -1145,6 +1283,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnAlugar.addEventListener('click', () => {
                     modal.remove();
                     abrirModalConfirmarAluguel(livro.titulo);
+                });
+            }
+
+            const btnAviseMe = document.getElementById('btn-avise-me');
+            if (btnAviseMe) {
+                btnAviseMe.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    const registrado = await registrarAvisoDisponibilidade(livro.id);
+                    if (registrado) {
+                        btnAviseMe.textContent = 'Inscrito';
+                        btnAviseMe.style.background = '#27ae60';
+                        btnAviseMe.disabled = true;
+                    }
                 });
             }
 
@@ -1321,7 +1472,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'meus-livros':       'Meus Livros',
         'solicitar-livros':  'Solicitar Livros',
         'notificacoes':      'Notificações'
-        // 'editar-perfil' removido da sidebar
     };
 
     menuLinks.forEach(link => {
@@ -1334,6 +1484,19 @@ document.addEventListener('DOMContentLoaded', () => {
             menuLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
 
+            // --- CONTROLE DE VISIBILIDADE DA COMUNIDADE ---
+            const contentRight = document.getElementById('content-right');
+            const containerComunidade = document.getElementById('comunidade-container');
+
+            if (section === 'inicio') {
+                contentRight.style.display = 'block';
+            } else {
+                contentRight.style.display = 'none';
+                if (containerComunidade) {
+                    containerComunidade.innerHTML = '';
+                }
+            }
+
             switch (section) {
                 case 'inicio':            renderInicio(); break;
                 case 'perfil':            renderPerfil(); break;
@@ -1343,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 default: contentLeft.innerHTML = '<p>Seção em desenvolvimento.</p>';
             }
 
-            if (section !== 'inicio') {
+            if (section === 'inicio') {
                 renderComunidade();
             }
         });
@@ -1377,4 +1540,4 @@ document.addEventListener('DOMContentLoaded', () => {
         contentLeft.innerHTML = '<p>Erro ao iniciar o painel. Recarregue a página.</p>';
     });
 
-}); // FIM DOMContentLoaded
+});

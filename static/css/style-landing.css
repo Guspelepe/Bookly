@@ -14,6 +14,9 @@ body {
     flex-direction: column;
     min-height: 100vh;
     overflow-y: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
 }
 
 /* ========================================
@@ -23,7 +26,7 @@ body {
     --cor-fundo: rgb(3, 2, 65);
     --cor-fundo-rgb: 3, 2, 65;
     --cor-destaque: #500465;
-    --sombra: 0 20px 60px rgba(0,0,0,0.35);
+    --sombra: 0 20px 60px rgba(0,0,0,0.12);
     --borda-card: 1px solid rgba(255,255,255,0.15);
 }
 
@@ -75,8 +78,8 @@ body {
 .col-form {
     flex: 1;
     display: flex;
-    flex-direction: column;    /* empilha logo e card */
-    justify-content: center;   /* centraliza verticalmente */
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
     background: var(--cor-fundo);
     padding: 20px;
@@ -87,24 +90,24 @@ body {
 .logo-login {
     display: block;
     width: 100%;
-    max-width: 600px;          /* ajuste o tamanho aqui */
+    max-width: 600px;
     height: auto;
     margin: 0 auto -50px;
     object-fit: contain;
-    margin-top: -100px;   /* ← ADICIONE ESTA LINHA */
+    margin-top: -100px;
 }
 
 /* ========================================
    CAIXA DE LOGIN (branca com glassmorphism)
    ======================================== */
 .card {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 24px;
     border: var(--borda-card);
     box-shadow: var(--sombra);
-    padding: 44px 38px 38px;
+    padding: 40px 36px;
     max-width: 420px;
     width: 100%;
     text-align: center;
@@ -115,7 +118,7 @@ body {
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.15);
 }
 
 /* Linha decorativa no topo */
@@ -136,8 +139,8 @@ body {
 
 .card h1 {
     color: #1a1a2e;
-    font-weight: 700;
-    font-size: 2rem;
+    font-weight: 600;
+    font-size: 1.8rem;
     margin-bottom: 6px;
     letter-spacing: -0.5px;
 }
@@ -176,7 +179,7 @@ form {
 
 .campo input {
     padding: 12px 16px;
-    border: 2px solid #e8e8ee;
+    border: 1.5px solid #e0e0e0;
     border-radius: 12px;
     font-size: 0.95rem;
     font-family: inherit;
@@ -185,14 +188,12 @@ form {
     width: 100%;
     transition: all 0.25s;
 }
-
 .campo input:focus {
     border-color: var(--cor-destaque);
     outline: none;
     box-shadow: 0 0 0 4px rgba(var(--cor-fundo-rgb), 0.12);
     background: #fff;
 }
-
 .campo input::placeholder {
     color: #a8a8b8;
 }
@@ -204,11 +205,9 @@ form {
     position: relative;
     width: 100%;
 }
-
 .senha-wrapper input {
     padding-right: 48px;
 }
-
 .btn-mostrar-senha {
     position: absolute;
     right: 8px;
@@ -223,7 +222,6 @@ form {
     transition: color 0.2s;
     line-height: 1;
 }
-
 .btn-mostrar-senha:hover {
     color: var(--cor-destaque);
 }
@@ -232,7 +230,7 @@ form {
    BOTÕES
    ======================================== */
 .btn-entrar {
-    background: var(--cor-destaque);
+    background: linear-gradient(135deg, var(--cor-destaque), #7b1fa2);
     color: #fff;
     border: none;
     padding: 14px;
@@ -244,13 +242,10 @@ form {
     transition: all 0.25s;
     margin-top: 4px;
 }
-
 .btn-entrar:hover {
-    background: var(--cor-fundo);
-    transform: scale(1.01);
-    box-shadow: 0 8px 24px rgba(var(--cor-fundo-rgb), 0.35);
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(80, 4, 101, 0.3);
 }
-
 .btn-entrar:active {
     transform: scale(0.98);
 }
@@ -258,18 +253,17 @@ form {
 .btn-registrar {
     background: transparent;
     color: var(--cor-destaque);
-    border: 2px solid var(--cor-destaque);
+    border: 1.5px solid var(--cor-destaque);
     padding: 12px;
     border-radius: 12px;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 500;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.25s;
     margin-top: 12px;
     width: 100%;
 }
-
 .btn-registrar:hover {
     background: var(--cor-destaque);
     color: #fff;
@@ -285,7 +279,6 @@ form {
     border-radius: 8px;
     display: none;
 }
-
 #erro.visible { display: block; }
 
 /* ========================================
@@ -301,24 +294,22 @@ form {
     z-index: 1000;
     backdrop-filter: blur(8px);
 }
-
 .modal-overlay.active { display: flex; }
 
 .modal-content {
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-radius: 20px;
+    border-radius: 24px;
     max-width: 500px;
     width: 92%;
     padding: 38px 34px 34px;
     position: relative;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.3);
     max-height: 90vh;
     overflow-y: auto;
     border: var(--borda-card);
 }
-
 .modal-content::before {
     content: '';
     position: absolute;
@@ -328,7 +319,6 @@ form {
     background-size: 200% 100%;
     animation: gradienteLinha 4s ease infinite;
 }
-
 .modal-content .fechar {
     position: absolute;
     top: 16px; right: 20px;
@@ -341,12 +331,10 @@ form {
     transition: all 0.2s;
     line-height: 1;
 }
-
 .modal-content .fechar:hover {
     color: #333;
     transform: rotate(90deg);
 }
-
 .modal-content h2 {
     color: #1a1a2e;
     font-size: 1.5rem;
@@ -354,9 +342,7 @@ form {
     text-align: center;
     margin-bottom: 6px;
 }
-
 .modal-content h2 span { color: var(--cor-destaque); }
-
 .modal-content .subtitulo-modal {
     text-align: center;
     color: #6b6b80;
@@ -365,7 +351,7 @@ form {
 }
 
 .btn-primario {
-    background: var(--cor-destaque);
+    background: linear-gradient(135deg, var(--cor-destaque), #7b1fa2);
     color: #fff;
     border: none;
     padding: 14px;
@@ -378,10 +364,9 @@ form {
     width: 100%;
     margin-top: 6px;
 }
-
 .btn-primario:hover {
-    background: var(--cor-fundo);
-    box-shadow: 0 8px 24px rgba(var(--cor-fundo-rgb), 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(80, 4, 101, 0.3);
 }
 
 #erro-registro {
@@ -393,7 +378,6 @@ form {
     border-radius: 8px;
     display: none;
 }
-
 #erro-registro.visible { display: block; }
 
 /* ========================================
@@ -446,7 +430,6 @@ form {
     pointer-events: none;
     z-index: 2;
 }
-
 #frase-destaque {
     color: #ffffff;
     font-family: 'Georgia', 'Times New Roman', serif;
@@ -460,7 +443,6 @@ form {
     letter-spacing: 0.5px;
     transition: opacity 0.5s ease;
 }
-
 @media (max-width: 768px) {
     .frase-container {
         bottom: 30px;
@@ -485,11 +467,7 @@ form {
 /* ========================================
    CARROSSEL – TRANSIÇÃO DE IMAGEM E FRASE
    ======================================== */
-#imagem-destaque {
-    transition: opacity 0.5s ease;
-}
-
-#frase-destaque {
+#imagem-destaque, #frase-destaque {
     transition: opacity 0.5s ease;
 }
 
@@ -505,7 +483,6 @@ form {
     width: 100%;
     flex-shrink: 0;
 }
-
 .footer-content {
     display: flex;
     justify-content: space-between;
@@ -515,39 +492,32 @@ form {
     max-width: 1200px;
     margin: 0 auto;
 }
-
 .footer-dev {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
 }
-
 .footer-dev span {
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
 }
-
 .footer-dev .dev-name {
     color: #fff;
     font-weight: 500;
     transition: color 0.3s;
 }
-
 .footer-dev .dev-name:hover {
     color: var(--cor-destaque);
 }
-
 .footer-dev .separator {
     color: rgba(255, 255, 255, 0.3);
 }
-
 .footer-github {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-
 .footer-github a {
     color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
@@ -557,21 +527,17 @@ form {
     align-items: center;
     gap: 6px;
 }
-
 .footer-github a:hover {
     color: var(--cor-destaque);
     transform: translateY(-2px);
 }
-
 .footer-github .github-icon {
     font-size: 1.2rem;
 }
-
 .footer-year {
     color: rgba(255, 255, 255, 0.4);
     font-size: 0.8rem;
 }
-
 @media (max-width: 768px) {
     .footer-content {
         flex-direction: column;
