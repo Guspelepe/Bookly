@@ -140,6 +140,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Tornar a função global para ser chamada pelo onclick
+    window.limparTodasNotificacoes = async function() {
+        try {
+            await aguardarBanco();
+            await db.notificacoes.where('usuario_id').equals(usuarioId).delete();
+            notificar('Todas as notificações foram removidas.');
+            renderNotificacoes();
+        } catch (err) {
+            console.error('Erro ao limpar notificações:', err);
+            notificar('Erro ao limpar notificações.', 'erro');
+        }
+    };
+
     async function atualizarContadorNotificacoes() {
         const notificacoes = await buscarNotificacoesNaoLidas();
         const count = notificacoes.length;
@@ -154,6 +167,79 @@ document.addEventListener('DOMContentLoaded', () => {
         if (badgeTopo) {
             badgeTopo.textContent = count > 0 ? count : '0';
             badgeTopo.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+
+        // Atualiza badge flutuante
+        await atualizarBadgeFlutuante();
+    }
+
+    // ===== BOTÕES FLUTUANTES =====
+    function criarBotoesFlutuantes() {
+        const existente = document.querySelector('.floating-actions');
+        if (existente) existente.remove();
+
+        const container = document.createElement('div');
+        container.className = 'floating-actions';
+        container.id = 'floating-actions';
+
+        const btnComunidade = document.createElement('button');
+        btnComunidade.id = 'btn-toggle-comunidade-flutuante';
+        btnComunidade.title = 'Alternar comunidade';
+        btnComunidade.textContent = '💬';
+        btnComunidade.style.color = 'var(--accent-color)';
+
+        const btnNotificacoes = document.createElement('button');
+        btnNotificacoes.id = 'btn-notificacoes-flutuante';
+        btnNotificacoes.title = 'Notificações';
+        btnNotificacoes.innerHTML = '🔔';
+        btnNotificacoes.className = 'badge';
+
+        container.appendChild(btnComunidade);
+        container.appendChild(btnNotificacoes);
+        document.body.appendChild(container);
+
+        // Evento do botão comunidade
+        btnComunidade.addEventListener('click', () => {
+            const contentRight = document.getElementById('content-right');
+            const containerComunidade = document.getElementById('comunidade-container');
+            if (!contentRight) return;
+
+            const isHidden = contentRight.style.display === 'none';
+            if (isHidden) {
+                contentRight.style.display = 'block';
+                btnComunidade.textContent = '💬';
+                btnComunidade.style.color = 'var(--accent-color)';
+                renderComunidade();
+            } else {
+                contentRight.style.display = 'none';
+                btnComunidade.textContent = '💬';
+                btnComunidade.style.color = 'var(--text-secondary)';
+                if (containerComunidade) containerComunidade.innerHTML = '';
+            }
+        });
+
+        // Evento do botão notificações
+        btnNotificacoes.addEventListener('click', () => {
+            const linkNotificacoes = document.querySelector('a[data-section="notificacoes"]');
+            if (linkNotificacoes) {
+                linkNotificacoes.click();
+            } else {
+                renderNotificacoes();
+                sectionTitle.textContent = 'Notificações';
+                document.querySelectorAll('.menu-user a').forEach(l => l.classList.remove('active'));
+            }
+        });
+
+        atualizarBadgeFlutuante();
+        return container;
+    }
+
+    async function atualizarBadgeFlutuante() {
+        const notificacoes = await buscarNotificacoesNaoLidas();
+        const count = notificacoes.length;
+        const badge = document.querySelector('.floating-actions .badge');
+        if (badge) {
+            badge.innerHTML = count > 0 ? `🔔<span class="badge-number">${count}</span>` : '🔔';
         }
     }
 
@@ -303,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .slice(0, 5);
 
             if (top.length === 0) {
-                html = '<p style="color: var(--text-secondary);">Nenhum usuário com livros lidos ainda.</p>';
+                html = '<p style="color: var(--text-secondary);">Nenhum usuário com livros alugados ainda.</p>';
             } else {
                 html = '<div class="grade-livros">';
                 top.forEach((u, i) => {
@@ -324,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="info" style="text-align:center;">
                             <h4>${apelido}</h4>
-                            <span style="font-size:0.8rem; color: var(--text-secondary);">${u.livros_lidos} livros lidos</span>
+                            <span style="font-size:0.8rem; color: var(--text-secondary);">${u.livros_lidos} livros alugados</span>
                         </div>
                     </div>`;
                 });
@@ -380,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // RENDERIZAR COMUNIDADE (mescla avaliações antigas e novos posts)
+    // RENDERIZAR COMUNIDADE
     // ================================================================
     async function renderComunidade() {
         try {
@@ -388,15 +474,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('comunidade-container');
             if (!container) return;
 
-            // Busca avaliações da tabela 'avaliacoes'
             const avaliacoes = await db.avaliacoes.toArray();
-            // Busca posts da tabela 'posts'
             const posts = await db.posts.toArray();
 
-            // Combina e transforma em um único array com estrutura padronizada
             let itens = [];
 
-            // Adiciona avaliações
             avaliacoes.forEach(av => {
                 itens.push({
                     tipo: 'avaliacao',
@@ -405,11 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     nota: av.nota,
                     comentario: av.comentario,
                     data: av.data,
-                    data_criacao: av.data // para ordenação
+                    data_criacao: av.data
                 });
             });
 
-            // Adiciona posts
             posts.forEach(post => {
                 itens.push({
                     tipo: 'post',
@@ -422,13 +503,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            // Ordena por data (mais recentes primeiro)
             itens.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
-
-            // Limita a 10 itens
             itens = itens.slice(0, 10);
 
-            // Busca informações dos usuários e livros
             const usuarios = await db.clientes.toArray();
             const livros = await db.livros.toArray();
             const mapaUsuarios = {};
@@ -457,7 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let conteudo = '';
                 if (item.tipo === 'avaliacao') {
-                    // Avaliação antiga
                     const livroNome = item.livro || 'Livro não especificado';
                     const nota = item.nota ? `⭐ ${item.nota}/5` : '';
                     conteudo = `
@@ -465,7 +541,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="avaliacao-texto">${item.comentario || 'Sem comentário'}</div>
                     `;
                 } else {
-                    // Post novo
                     const livroNome = item.livro_id ? mapaLivros[item.livro_id] : null;
                     const nota = item.nota ? `⭐ ${item.nota}/5` : '';
                     conteudo = `
@@ -551,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await aguardarBanco();
             console.log('Renderizando página inicial...');
 
-            // ===== DESTAQUES =====
             let html = `
             <div class="card-user">
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
@@ -565,7 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="grade-destaques"></div>
             </div>`;
 
-            // ===== BIBLIOTECA (todos os livros com pesquisa) =====
             const livros = await db.livros.toArray();
             livros.sort((a, b) => a.titulo.localeCompare(b.titulo));
             const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
@@ -583,7 +656,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             contentLeft.innerHTML = html;
 
-            // ===== CONFIGURA DESTAQUES =====
+            // Cria botões flutuantes
+            criarBotoesFlutuantes();
+
             const botoesFiltro = document.querySelectorAll('.btn-filtro');
             async function setAba(tipo) {
                 botoesFiltro.forEach(btn => {
@@ -597,7 +672,6 @@ document.addEventListener('DOMContentLoaded', () => {
             botoesFiltro.forEach(btn => btn.addEventListener('click', () => setAba(btn.dataset.tipo)));
             await setAba('top_livros');
 
-            // ===== RENDERIZA BIBLIOTECA =====
             function renderizarLivros(lista) {
                 const container = document.getElementById('grade-biblioteca');
                 if (!container) return;
@@ -619,21 +693,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderizarLivros(livros);
 
-            // ===== PESQUISA =====
             const inputPesquisa = document.getElementById('pesquisa-biblioteca');
             const btnLimpar = document.getElementById('btn-limpar-pesquisa-biblioteca');
 
+            function normalizarTexto(texto) {
+                return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            }
+
             inputPesquisa.addEventListener('input', function() {
                 const termo = this.value.trim().toLowerCase();
+                const termoNormalizado = normalizarTexto(termo);
+
                 if (termo === '') {
                     renderizarLivros(livros);
                     return;
                 }
-                const filtrados = livros.filter(l => 
-                    l.titulo.toLowerCase().includes(termo) ||
-                    l.autor.toLowerCase().includes(termo) ||
-                    (l.genero && l.genero.toLowerCase().includes(termo))
-                );
+
+                const filtrados = livros.map(livro => {
+                    const tituloNormalizado = normalizarTexto(livro.titulo);
+                    const autorNormalizado = normalizarTexto(livro.autor);
+                    const generoNormalizado = livro.genero ? normalizarTexto(livro.genero) : '';
+
+                    let score = 0;
+                    if (tituloNormalizado.startsWith(termoNormalizado)) score += 10;
+                    if (autorNormalizado.startsWith(termoNormalizado)) score += 5;
+                    if (tituloNormalizado.includes(termoNormalizado)) score += 3;
+                    if (autorNormalizado.includes(termoNormalizado)) score += 2;
+                    if (generoNormalizado.includes(termoNormalizado)) score += 1;
+
+                    return { livro, score };
+                })
+                .filter(item => item.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.livro);
+
                 renderizarLivros(filtrados);
             });
 
@@ -643,10 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputPesquisa.focus();
             });
 
-            // ===== COMUNIDADE =====
             renderComunidade();
-
-            // ===== ATUALIZAÇÃO AUTOMÁTICA =====
             iniciarAtualizacaoAutomatica();
 
             console.log('Página inicial renderizada.');
@@ -666,18 +756,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: MEUS LIVROS
+    // SEÇÃO: MEUS LIVROS (renomeado para HISTÓRICO)
     // ================================================================
     async function renderMeusLivros() {
         try {
             await aguardarBanco();
             const alugueis = await db.alugueis.where({ cliente_id: usuarioId }).toArray();
             if (alugueis.length === 0) {
-                contentLeft.innerHTML = `<div class="card-user"><h3>Meus Livros</h3><p>Você ainda não alugou nenhum livro.</p></div>`;
+                contentLeft.innerHTML = `<div class="card-user"><h3>Histórico</h3><p>Você ainda não alugou nenhum livro.</p></div>`;
                 return;
             }
 
-            let html = `<div class="card-user"><h3>Meus Livros</h3>
+            let html = `<div class="card-user"><h3>Histórico de Empréstimos</h3>
                 <table class="tabela-user">
                     <thead><tr>
                         <th>Livro</th><th>Data Locação</th><th>Prev. Devolução</th><th>Devolução Real</th>
@@ -718,7 +808,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += '</tbody></table></div>';
             contentLeft.innerHTML = html;
 
-            // Botões de ação
             document.querySelectorAll('tr[data-id]').forEach(row => {
                 const aluguelId = parseInt(row.dataset.id);
                 const acoesCell = row.querySelector('.acoes-cell');
@@ -750,8 +839,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } catch (err) {
-            console.error('Erro ao renderizar meus livros:', err);
-            contentLeft.innerHTML = '<p>Erro ao carregar seus livros.</p>';
+            console.error('Erro ao renderizar histórico:', err);
+            contentLeft.innerHTML = '<p>Erro ao carregar seu histórico.</p>';
         }
     }
 
@@ -864,11 +953,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const lendoAgora = usuarioAtual.lendo_agora || 'Nenhum livro no momento.';
             const apelido    = usuarioAtual.apelido || '';
 
-            // Busca os posts do usuário (avaliações) - ordenados do mais recente para o mais antigo
             const posts = (await db.posts.where('usuario_id').equals(usuarioId).toArray())
                 .sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
 
-            // Busca todos os livros para o select
             const livros = await db.livros.toArray();
             const livrosMap = {};
             livros.forEach(l => { livrosMap[l.id] = l.titulo; });
@@ -879,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <img src="${fotoUrl}" alt="${usuarioAtual.nome}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:4px solid var(--accent-color); margin-bottom:12px;" onerror="this.src='static/src/avatares/usuario.jpg'">
                     <h2 style="margin:0; font-size:2rem;">${apelido || usuarioAtual.nome}</h2>
                     <p style="color:var(--text-secondary); font-size:1rem; margin-top:4px;">${usuarioAtual.nome}</p>
-                    <button onclick="renderEditarPerfil()" style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.85rem; cursor:pointer; margin-top:8px; display:flex; align-items:center; gap:6px;">
+                    <button onclick="window.renderEditarPerfil()" style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.85rem; cursor:pointer; margin-top:8px; display:flex; align-items:center; gap:6px;">
                         Editar Perfil
                     </button>
                 </div>
@@ -926,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const nota = post.nota || '—';
                     html += `
                     <div style="background:var(--bg-sidebar); padding:12px 16px; border-radius:8px; margin-bottom:12px; border-left:3px solid var(--accent-color);">
-                        ${livroNome ? `<p style="font-weight:600; color:var(--accent-color);">${livroNome} ${nota !== '—' ? `- ★ ${nota}/5` : ''}</p>` : ''}
+                        ${livroNome ? `<p style="font-weight:600; color:var(--accent-color);">${livroNome} ${nota !== '—' ? `- ⭐ ${nota}/5` : ''}</p>` : ''}
                         <p style="margin:4px 0; color:var(--text-primary);">${post.texto}</p>
                         <small style="color:var(--text-secondary);">${dataStr}</small>
                     </div>`;
@@ -936,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             contentLeft.innerHTML = html;
 
-            // Listener do formulário de post
             document.getElementById('form-criar-post').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const texto = document.getElementById('post-texto').value.trim();
@@ -961,8 +1047,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.renderPerfil = renderPerfil;
+
     // ================================================================
-    // SEÇÃO: EDITAR PERFIL (acessível via botão no perfil)
+    // SEÇÃO: EDITAR PERFIL
     // ================================================================
     window.renderEditarPerfil = async function() {
         try {
@@ -1005,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <button type="button" id="btn-salvar-perfil" class="btn-user" style="margin-top:30px; width:100%;">Salvar alterações</button>
-                <button type="button" onclick="renderPerfil()" style="margin-top:10px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:8px 16px; border-radius:6px; cursor:pointer; width:100%;">Voltar</button>
+                <button type="button" onclick="window.renderPerfil()" style="margin-top:10px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:8px 16px; border-radius:6px; cursor:pointer; width:100%;">Voltar</button>
             </div>`;
             contentLeft.innerHTML = html;
 
@@ -1164,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // SEÇÃO: NOTIFICAÇÕES
+    // SEÇÃO: NOTIFICAÇÕES (com botão limpar)
     // ================================================================
     async function renderNotificacoes() {
         try {
@@ -1183,6 +1271,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await atualizarContadorNotificacoes();
 
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="color:var(--text-secondary); font-size:0.9rem;">${notificacoes.length} notificações</span>
+                    <button onclick="window.limparTodasNotificacoes()" style="background:#e74c3c; color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.8rem;">Limpar todas</button>
+                </div>`;
+
                 html += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
                 notificacoes.forEach(n => {
                     const data = new Date(n.data_criacao);
@@ -1200,6 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div>`;
 
             contentLeft.innerHTML = html;
+            await atualizarBadgeFlutuante();
         } catch (err) {
             console.error('Erro ao renderizar notificações:', err);
             contentLeft.innerHTML = '<p>Erro ao carregar notificações.</p>';
@@ -1469,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const titlesMap = {
         'inicio':            'Página Inicial',
         'perfil':            'Perfil',
-        'meus-livros':       'Meus Livros',
+        'meus-livros':       'Histórico',
         'solicitar-livros':  'Solicitar Livros',
         'notificacoes':      'Notificações'
     };
@@ -1484,17 +1578,34 @@ document.addEventListener('DOMContentLoaded', () => {
             menuLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
 
-            // --- CONTROLE DE VISIBILIDADE DA COMUNIDADE ---
+            // CONTROLE DE VISIBILIDADE DA COMUNIDADE
             const contentRight = document.getElementById('content-right');
             const containerComunidade = document.getElementById('comunidade-container');
 
             if (section === 'inicio') {
                 contentRight.style.display = 'block';
+                // Atualiza o ícone do botão flutuante
+                const btnFloat = document.querySelector('#btn-toggle-comunidade-flutuante');
+                if (btnFloat) {
+                    btnFloat.textContent = '💬';
+                    btnFloat.style.color = 'var(--accent-color)';
+                }
             } else {
                 contentRight.style.display = 'none';
                 if (containerComunidade) {
                     containerComunidade.innerHTML = '';
                 }
+                const btnFloat = document.querySelector('#btn-toggle-comunidade-flutuante');
+                if (btnFloat) {
+                    btnFloat.textContent = '💬';
+                    btnFloat.style.color = 'var(--text-secondary)';
+                }
+            }
+
+            // Esconde botões flutuantes fora da página inicial (opcional)
+            const floatingActions = document.getElementById('floating-actions');
+            if (floatingActions) {
+                floatingActions.style.display = (section === 'inicio') ? 'flex' : 'none';
             }
 
             switch (section) {
@@ -1512,19 +1623,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Botão de notificações no topo da comunidade
+    // Botão de notificações no topo da comunidade (remover, pois já temos flutuante)
     const btnNotificacoesTopo = document.getElementById('btn-notificacoes-topo');
     if (btnNotificacoesTopo) {
-        btnNotificacoesTopo.addEventListener('click', () => {
-            const linkNotificacoes = document.querySelector('a[data-section="notificacoes"]');
-            if (linkNotificacoes) {
-                linkNotificacoes.click();
-            } else {
-                renderNotificacoes();
-                sectionTitle.textContent = 'Notificações';
-                document.querySelectorAll('.menu-user a').forEach(l => l.classList.remove('active'));
-            }
-        });
+        btnNotificacoesTopo.style.display = 'none';
     }
 
     // ================================================================

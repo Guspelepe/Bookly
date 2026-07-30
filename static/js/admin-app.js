@@ -340,11 +340,11 @@ document.addEventListener('DOMContentLoaded', function() {
         contentArea.innerHTML = html;
     }
 
-    // 3. CATÁLOGO
+    // 3. CATÁLOGO (ordenado por mais recentes)
     async function renderCatalogo() {
         await aguardarBanco();
         const livros = await db.livros.toArray();
-        livros.sort((a, b) => a.titulo.localeCompare(b.titulo));
+        livros.sort((a, b) => b.id - a.id); // mais recentes primeiro
 
         let html = `
             <div class="card">
@@ -561,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ================================================================
-    // EDITAR LIVROS (modal)
+    // EDITAR LIVROS (modal) – corrigido para tema escuro
     // ================================================================
     window.abrirModalEditarLivro = async function(id) {
         const livro = await db.livros.get(id);
@@ -574,31 +574,31 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.id = 'modal-editar-livro';
         modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px);';
         modal.innerHTML = `
-            <div style="background:#fff; padding:28px; border-radius:8px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto;">
+            <div style="background: var(--bg-card, #fff); color: var(--text-primary, #333); padding:28px; border-radius:8px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0;">Editar Livro</h3>
-                    <button onclick="this.closest('#modal-editar-livro').remove()" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:#999;">&times;</button>
+                    <h3 style="margin:0; color: var(--text-primary, #333);">Editar Livro</h3>
+                    <button onclick="this.closest('#modal-editar-livro').remove()" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color: var(--text-secondary, #999);">&times;</button>
                 </div>
                 <form id="form-editar-livro">
                     <input type="hidden" id="edit-livro-id" value="${livro.id}">
-                    <div><label>Título</label><input type="text" id="edit-titulo" value="${livro.titulo}" required></div>
-                    <div><label>Autor</label><input type="text" id="edit-autor" value="${livro.autor}" required></div>
-                    <div><label>Ano</label><input type="number" id="edit-ano" value="${livro.ano}" required></div>
-                    <div><label>Editora</label><input type="text" id="edit-editora" value="${livro.editora}" required></div>
-                    <div><label>Gênero</label><input type="text" id="edit-genero" value="${livro.genero || ''}"></div>
-                    <div><label>Classificação</label><input type="text" id="edit-classificacao" value="${livro.classificacao || ''}"></div>
-                    <div><label>Sinopse</label><textarea id="edit-sinopse" rows="4">${livro.sinopse || ''}</textarea></div>
-                    <div style="border-top:1px solid #eee; padding-top:16px;">
-                        <label>URL da capa</label>
-                        <input type="text" id="edit-capa" value="${livro.capa || ''}" placeholder="https://exemplo.com/capa.jpg">
+                    <div><label style="color: var(--text-secondary);">Título</label><input type="text" id="edit-titulo" value="${livro.titulo}" required style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Autor</label><input type="text" id="edit-autor" value="${livro.autor}" required style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Ano</label><input type="number" id="edit-ano" value="${livro.ano}" required style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Editora</label><input type="text" id="edit-editora" value="${livro.editora}" required style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Gênero</label><input type="text" id="edit-genero" value="${livro.genero || ''}" style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Classificação</label><input type="text" id="edit-classificacao" value="${livro.classificacao || ''}" style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);"></div>
+                    <div><label style="color: var(--text-secondary);">Sinopse</label><textarea id="edit-sinopse" rows="4" style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);">${livro.sinopse || ''}</textarea></div>
+                    <div style="border-top:1px solid var(--border-color, #eee); padding-top:16px;">
+                        <label style="color: var(--text-secondary);">URL da capa</label>
+                        <input type="text" id="edit-capa" value="${livro.capa || ''}" placeholder="https://exemplo.com/capa.jpg" style="background: var(--input-bg, #fff); color: var(--text-primary, #333); border:1px solid var(--border-color, #ddd);">
                         <input type="file" id="edit-capa-upload" accept="image/*" style="margin-top:8px;">
                         <div id="preview-capa-container" style="margin-top:8px; ${livro.capa ? '' : 'display:none;'}">
-                            <img id="preview-capa" src="${livro.capa || ''}" style="max-width:120px; max-height:160px; border-radius:4px; border:1px solid #ddd;">
+                            <img id="preview-capa" src="${livro.capa || ''}" style="max-width:120px; max-height:160px; border-radius:4px; border:1px solid var(--border-color, #ddd);">
                             <button type="button" onclick="document.getElementById('edit-capa').value=''; document.getElementById('preview-capa-container').style.display='none';" style="background:#e74c3c; color:#fff; border:none; padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-left:8px;">Remover</button>
                         </div>
                     </div>
-                    <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600;">Salvar</button>
-                    <button type="button" onclick="this.closest('#modal-editar-livro').remove()" style="background:#95a5a6; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600; margin-left:8px;">Cancelar</button>
+                    <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600; border:none;">Salvar</button>
+                    <button type="button" onclick="this.closest('#modal-editar-livro').remove()" style="background:#95a5a6; color:#fff; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:600; border:none; margin-left:8px;">Cancelar</button>
                 </form>
             </div>
         `;
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCatalogo();
     };
 
-    // 5. ALUGAR
+    // 5. ALUGAR (com notificação para o usuário)
     async function renderAlugar() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -770,6 +770,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 status: 'ativo'
             });
 
+            if (cliente) {
+                await criarNotificacao(
+                    clienteId,
+                    `Seu aluguel do livro "${livroTitulo}" foi realizado pelo bibliotecário.`,
+                    'aluguel'
+                );
+            }
+
             await registrarLog(
                 'aluguel',
                 clienteId,
@@ -783,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 6. DEVOLVER
+    // 6. DEVOLVER (com notificação para o usuário e aviso de disponibilidade)
     async function renderDevolver() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -869,6 +877,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 multa: multa
             });
 
+            if (cliente) {
+                await criarNotificacao(
+                    aluguel.cliente_id,
+                    `Sua devolução do livro "${aluguel.livro}" foi registrada pelo bibliotecário.`,
+                    'devolucao'
+                );
+            }
+
             await registrarLog(
                 'devolucao',
                 aluguel.cliente_id,
@@ -886,7 +902,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 for (const aviso of avisosPendentes) {
                     await criarNotificacao(
                         aviso.usuario_id,
-                        `O livro "${aluguel.livro}" que você estava aguardando está disponível para aluguel!`,
+                        `O livro "${aluguel.livro}" que você aguardava está disponível!`,
                         'disponibilidade'
                     );
                     await db.avisos_disponibilidade.update(aviso.id, { status: 'concluido' });
@@ -902,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ================================================================
-    // 7. SOLICITAÇÕES
+    // 7. SOLICITAÇÕES (unificadas: livros + aluguel/devolução)
     // ================================================================
     async function renderSolicitacoes() {
         await aguardarBanco();
@@ -949,6 +965,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         html += `</div>`;
 
+        // ===== SEÇÃO DE SOLICITAÇÕES DE ALUGUEL/DEVOLUÇÃO =====
         html += `<div class="card"><h3>Solicitações de Aluguel/Devolução (Pendentes)</h3>`;
         if (solicitacoesAluguel.length === 0) {
             html += `<p>Nenhuma solicitação pendente.</p>`;
@@ -963,7 +980,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <th>Ações</th>
                 </tr></thead><tbody>`;
             for (const sol of solicitacoesAluguel) {
-                const usuario = mapaClientes[sol.cliente_id] || { nome: 'Desconhecido', apelido: '' };
+                // FALLBACK: usa cliente_nome se não encontrar no mapa
+                const usuario = mapaClientes[sol.cliente_id] || { nome: sol.cliente_nome || 'Desconhecido', apelido: '' };
                 const nomeUsuario = usuario.apelido || usuario.nome;
                 const data = new Date(sol.data_solicitacao).toLocaleDateString('pt-BR') + ' ' + new Date(sol.data_solicitacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
                 const tipoLabel = sol.tipo === 'aluguel' ? 'Aluguel' : 'Devolução';
@@ -987,6 +1005,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         contentArea.innerHTML = html;
 
+        // ===== FUNÇÕES AUXILIARES =====
         window.adicionarLivroPorSolicitacao = async function(id) {
             const solicitacao = await db.solicitacoes.get(id);
             if (!solicitacao) return;
@@ -1033,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS =====
+    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS (sugestões) =====
     window.verDetalhesSolicitacao = async function(id) {
         const solicitacao = await db.solicitacoes.get(id);
         if (!solicitacao) return;
@@ -1051,10 +1070,10 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.id = 'modal-detalhes-solicitacao';
         modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
         modal.innerHTML = `
-            <div style="background:#fff; padding:24px; border-radius:8px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto;">
+            <div style="background:var(--bg-card, #fff); color:var(--text-primary, #333); padding:24px; border-radius:8px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0;">Detalhes da Solicitação</h3>
-                    <button onclick="this.closest('#modal-detalhes-solicitacao').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary);">&times;</button>
+                    <h3 style="margin:0; color:var(--text-primary, #333);">Detalhes da Solicitação</h3>
+                    <button onclick="this.closest('#modal-detalhes-solicitacao').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-secondary, #999);">&times;</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                     <img src="${fotoUrl}" alt="${nomeUsuario}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" onerror="this.src='static/src/avatares/usuario.jpg'">
@@ -1063,11 +1082,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div><strong>Título:</strong> ${solicitacao.titulo}</div>
                 ${solicitacao.autor ? `<div><strong>Autor:</strong> ${solicitacao.autor}</div>` : ''}
                 ${solicitacao.editora ? `<div><strong>Editora:</strong> ${solicitacao.editora}</div>` : ''}
-                ${solicitacao.comentario ? `<div style="background:#f8f9fa; padding:12px; border-radius:6px; margin-bottom:16px;"><strong>Comentário:</strong><p style="margin:8px 0 0; color:#555; font-style:italic;">"${solicitacao.comentario}"</p></div>` : ''}
+                ${solicitacao.comentario ? `<div style="background:var(--hover-bg, #f8f9fa); padding:12px; border-radius:6px; margin-bottom:16px;"><strong>Comentário:</strong><p style="margin:8px 0 0; color:var(--text-secondary, #555); font-style:italic;">"${solicitacao.comentario}"</p></div>` : ''}
                 ${solicitacao.resposta ? `<div style="background:#e8f5e9; padding:12px; border-radius:6px; margin-bottom:16px; border-left:4px solid #27ae60;"><strong>Resposta:</strong><p style="margin:8px 0 0; color:#2e7d32;">${solicitacao.resposta}</p></div>` : ''}
                 <div style="margin-top:12px;">
-                    <label for="resposta-admin" style="display:block; margin-bottom:4px; font-weight:600;">Responder ao usuário:</label>
-                    <textarea id="resposta-admin" rows="3" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" placeholder="Escreva uma resposta...">${solicitacao.resposta || ''}</textarea>
+                    <label for="resposta-admin" style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-primary);">Responder ao usuário:</label>
+                    <textarea id="resposta-admin" rows="3" style="width:100%; padding:8px; border:1px solid var(--border-color, #ddd); border-radius:4px; background:var(--input-bg, #fff); color:var(--text-primary, #333);">${solicitacao.resposta || ''}</textarea>
                     <button onclick="enviarResposta(${solicitacao.id})" style="margin-top:8px; background:#2196F3; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Enviar Resposta</button>
                 </div>
                 ${solicitacao.status === 'pendente' ? `<button onclick="atenderSolicitacao(${solicitacao.id}); document.getElementById('modal-detalhes-solicitacao').remove();" style="background:#27ae60; color:#fff; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-top:12px;">Atender</button>` : ''}
@@ -1103,6 +1122,148 @@ document.addEventListener('DOMContentLoaded', function() {
         notificar('Resposta enviada!');
         document.getElementById('modal-detalhes-solicitacao').remove();
         renderSolicitacoes();
+    };
+
+    // ================================================================
+    // FUNÇÕES PARA SOLICITAÇÕES DE ALUGUEL/DEVOLUÇÃO
+    // ================================================================
+    window.aceitarSolicitacaoAluguel = async function(id) {
+        try {
+            await aguardarBanco();
+            const solicitacao = await db.solicitacoes_aluguel.get(id);
+            if (!solicitacao || solicitacao.status !== 'pendente') {
+                notificar('Solicitação não encontrada ou já processada.', 'erro');
+                return;
+            }
+
+            if (solicitacao.tipo === 'aluguel') {
+                const livroAlugado = await db.alugueis.where('livro').equals(solicitacao.livro).filter(a => a.status === 'ativo').first();
+                if (livroAlugado) {
+                    notificar('Este livro já foi alugado por outro usuário.', 'erro');
+                    return;
+                }
+
+                await db.alugueis.add({
+                    cliente_id: solicitacao.cliente_id,
+                    livro: solicitacao.livro,
+                    data_locacao: solicitacao.data_locacao,
+                    data_devolucao_prevista: solicitacao.data_devolucao_prevista,
+                    status: 'ativo'
+                });
+
+                await registrarLog(
+                    'aluguel',
+                    solicitacao.cliente_id,
+                    solicitacao.cliente_nome,
+                    solicitacao.livro,
+                    sessionStorage.getItem('usuario') || 'Bibliotecário'
+                );
+
+                await criarNotificacao(
+                    solicitacao.cliente_id,
+                    `Seu aluguel do livro "${solicitacao.livro}" foi aceito! Aproveite a leitura.`,
+                    'aluguel'
+                );
+            } else if (solicitacao.tipo === 'devolucao') {
+                const aluguel = await db.alugueis.where('cliente_id').equals(solicitacao.cliente_id)
+                    .and(a => a.livro === solicitacao.livro && a.status === 'ativo')
+                    .first();
+
+                if (!aluguel) {
+                    notificar('Aluguel ativo não encontrado para este livro.', 'erro');
+                    return;
+                }
+
+                const hoje = new Date().toISOString().split('T')[0];
+                await db.alugueis.update(aluguel.id, {
+                    status: 'devolvido',
+                    data_devolucao_real: hoje,
+                    dias_atraso: solicitacao.multa_calculada ? Math.ceil(solicitacao.multa_calculada / MULTA_POR_DIA) : 0,
+                    multa: solicitacao.multa_calculada || 0
+                });
+
+                await registrarLog(
+                    'devolucao',
+                    solicitacao.cliente_id,
+                    solicitacao.cliente_nome,
+                    solicitacao.livro,
+                    sessionStorage.getItem('usuario') || 'Bibliotecário'
+                );
+
+                const livro = await db.livros.where('titulo').equals(solicitacao.livro).first();
+                if (livro) {
+                    const avisosPendentes = await db.avisos_disponibilidade
+                        .where('livro_id').equals(livro.id)
+                        .and(a => a.status === 'pendente')
+                        .toArray();
+                    for (const aviso of avisosPendentes) {
+                        await criarNotificacao(
+                            aviso.usuario_id,
+                            `O livro "${solicitacao.livro}" que você aguardava está disponível!`,
+                            'disponibilidade'
+                        );
+                        await db.avisos_disponibilidade.update(aviso.id, { status: 'concluido' });
+                    }
+                }
+
+                await criarNotificacao(
+                    solicitacao.cliente_id,
+                    `Sua devolução do livro "${solicitacao.livro}" foi confirmada. Obrigado!`,
+                    'devolucao'
+                );
+            }
+
+            await db.solicitacoes_aluguel.update(id, {
+                status: 'aceita',
+                bibliotecario: sessionStorage.getItem('usuario') || 'Bibliotecário',
+                resposta: 'Solicitação aceita.'
+            });
+
+            notificar('Solicitação aceita com sucesso!');
+            renderSolicitacoes();
+
+        } catch (err) {
+            console.error('Erro ao aceitar solicitação:', err);
+            notificar('Erro ao processar solicitação.', 'erro');
+        }
+    };
+
+    window.recusarSolicitacaoAluguel = async function(id) {
+        try {
+            await aguardarBanco();
+            const solicitacao = await db.solicitacoes_aluguel.get(id);
+            if (!solicitacao || solicitacao.status !== 'pendente') {
+                notificar('Solicitação não encontrada ou já processada.', 'erro');
+                return;
+            }
+
+            await db.solicitacoes_aluguel.update(id, {
+                status: 'recusada',
+                bibliotecario: sessionStorage.getItem('usuario') || 'Bibliotecário',
+                resposta: 'Solicitação recusada pelo bibliotecário.'
+            });
+
+            await registrarLog(
+                'solicitacao_recusada',
+                solicitacao.cliente_id,
+                solicitacao.cliente_nome,
+                solicitacao.livro,
+                sessionStorage.getItem('usuario') || 'Bibliotecário'
+            );
+
+            await criarNotificacao(
+                solicitacao.cliente_id,
+                `Sua solicitação de ${solicitacao.tipo === 'aluguel' ? 'aluguel' : 'devolução'} do livro "${solicitacao.livro}" foi recusada.`,
+                'sistema'
+            );
+
+            notificar('Solicitação recusada.');
+            renderSolicitacoes();
+
+        } catch (err) {
+            console.error('Erro ao recusar solicitação:', err);
+            notificar('Erro ao recusar solicitação.', 'erro');
+        }
     };
 
     // ============================================================

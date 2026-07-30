@@ -543,3 +543,14 @@ button.perigo:hover {
 #btn-limpar-pesquisa:hover {
     opacity: 0.85;
 }
+
+.sidebar-nav #logout-btn {
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 !important;  /* força sem curvatura */
+    margin-top: 30px;
+    padding-top: 16px;
+}
+
+.sidebar-nav #logout-btn {
+    border-radius: 0 !important;
+}
