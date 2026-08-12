@@ -240,12 +240,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // GERAR CARD DE LIVRO
+    // GERAR CARD DE LIVRO (com avaliação média)
     // ================================================================
-    function gerarCardLivro(livro, disponivel) {
+    function gerarCardLivro(livro, disponivel, media = null, total = 0) {
         const statusClass = disponivel ? 'status-disponivel' : 'status-alugado';
         const statusTexto = disponivel ? 'Disponível' : 'Alugado';
         const capa = livro.capa || `static/src/${encodeURIComponent(livro.titulo)}.jpg`;
+        
+        let estrelasHtml = '';
+        if (total > 0 && media !== null) {
+            const full = Math.round(media);
+            const vazias = 5 - full;
+            estrelasHtml = `<span style="color: #f1c40f; font-size:0.75rem; font-weight:500;">${'★'.repeat(full)}${'☆'.repeat(vazias)} (${total})</span>`;
+        } else {
+            estrelasHtml = `<span style="color: var(--text-secondary); font-size:0.7rem;">Sem avaliações</span>`;
+        }
+
         return `
         <div class="livro-card" data-titulo="${livro.titulo}" style="cursor:pointer;">
             <div class="capa">
@@ -254,7 +264,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="info">
                 <h4>${livro.titulo}</h4>
-                <span class="status ${statusClass}">${statusTexto}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                    <span class="status ${statusClass}">${statusTexto}</span>
+                    ${estrelasHtml}
+                </div>
             </div>
         </div>`;
     }
@@ -295,12 +308,42 @@ document.addEventListener('DOMContentLoaded', () => {
         let grupoAtual = 0;
         const totalGrupos = grupos.length;
 
+        // Buscar avaliações para calcular média dos livros do carrossel
+        const posts = await db.posts.toArray();
+        const avaliacoesAntigas = await db.avaliacoes.toArray();
+        const notasPorLivro = {};
+
+        // Processar posts
+        for (const p of posts) {
+            if (p.livro_id && p.nota !== null && p.nota !== undefined) {
+                const livro = await db.livros.get(p.livro_id);
+                if (livro) {
+                    const chave = livro.titulo.trim().toLowerCase();
+                    if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                    notasPorLivro[chave].soma += p.nota;
+                    notasPorLivro[chave].count += 1;
+                }
+            }
+        }
+        // Processar avaliacoes antigas
+        for (const a of avaliacoesAntigas) {
+            if (a.livro && a.nota !== null && a.nota !== undefined) {
+                const chave = a.livro.trim().toLowerCase();
+                if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                notasPorLivro[chave].soma += a.nota;
+                notasPorLivro[chave].count += 1;
+            }
+        }
+
         let html = `<div class="carrossel-wrapper"><div class="carrossel-track" id="carrossel-track">`;
         const gruposParaRender = [...grupos, grupos[0]];
         gruposParaRender.forEach(grupo => {
             grupo.forEach(livro => {
+                const chave = livro.titulo.trim().toLowerCase();
+                const dados = notasPorLivro[chave] || { soma: 0, count: 0 };
+                const media = dados.count > 0 ? dados.soma / dados.count : null;
                 html += `<div class="livro-card" data-titulo="${livro.titulo}" style="flex:0 0 180px; margin-right:16px; cursor:pointer;">`;
-                html += gerarCardLivro(livro, true);
+                html += gerarCardLivro(livro, true, media, dados.count);
                 html += `</div>`;
             });
         });
@@ -308,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = html;
 
+        // Atualizar status de disponibilidade
         const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
         const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
         document.querySelectorAll('#carrossel-track .livro-card').forEach(card => {
@@ -417,11 +461,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
             const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
             const novos = livros.sort((a, b) => b.id - a.id).slice(0, 5);
+
+            // Buscar avaliações para calcular média
+            const posts = await db.posts.toArray();
+            const avaliacoesAntigas = await db.avaliacoes.toArray();
+            const notasPorLivro = {};
+            for (const p of posts) {
+                if (p.livro_id && p.nota !== null && p.nota !== undefined) {
+                    const livro = await db.livros.get(p.livro_id);
+                    if (livro) {
+                        const chave = livro.titulo.trim().toLowerCase();
+                        if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                        notasPorLivro[chave].soma += p.nota;
+                        notasPorLivro[chave].count += 1;
+                    }
+                }
+            }
+            for (const a of avaliacoesAntigas) {
+                if (a.livro && a.nota !== null && a.nota !== undefined) {
+                    const chave = a.livro.trim().toLowerCase();
+                    if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                    notasPorLivro[chave].soma += a.nota;
+                    notasPorLivro[chave].count += 1;
+                }
+            }
+
             html = '<div class="grade-livros">';
             novos.forEach(livro => {
                 const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
                 const disponivel = !alugadosSet.has(tituloSimples);
-                html += gerarCardLivro(livro, disponivel);
+                const chave = livro.titulo.trim().toLowerCase();
+                const dados = notasPorLivro[chave] || { soma: 0, count: 0 };
+                const media = dados.count > 0 ? dados.soma / dados.count : null;
+                html += gerarCardLivro(livro, disponivel, media, dados.count);
             });
             html += '</div>';
         }
@@ -640,6 +712,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
             const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
 
+            // Buscar avaliações para calcular média dos livros na grade completa
+            const posts = await db.posts.toArray();
+            const avaliacoesAntigas = await db.avaliacoes.toArray();
+            const notasPorLivro = {};
+
+            // Processar posts
+            for (const p of posts) {
+                if (p.livro_id && p.nota !== null && p.nota !== undefined) {
+                    const livro = await db.livros.get(p.livro_id);
+                    if (livro) {
+                        const chave = livro.titulo.trim().toLowerCase();
+                        if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                        notasPorLivro[chave].soma += p.nota;
+                        notasPorLivro[chave].count += 1;
+                    }
+                }
+            }
+            // Processar avaliacoes antigas
+            for (const a of avaliacoesAntigas) {
+                if (a.livro && a.nota !== null && a.nota !== undefined) {
+                    const chave = a.livro.trim().toLowerCase();
+                    if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                    notasPorLivro[chave].soma += a.nota;
+                    notasPorLivro[chave].count += 1;
+                }
+            }
+
             html += `
             <div class="card-user">
                 <h3>Todos os Livros</h3>
@@ -678,7 +777,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 lista.forEach(livro => {
                     const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
                     const disponivel = !alugadosSet.has(tituloSimples);
-                    cards += gerarCardLivro(livro, disponivel);
+                    const chave = livro.titulo.trim().toLowerCase();
+                    const dados = notasPorLivro[chave] || { soma: 0, count: 0 };
+                    const media = dados.count > 0 ? dados.soma / dados.count : null;
+                    cards += gerarCardLivro(livro, disponivel, media, dados.count);
                 });
                 container.innerHTML = cards;
                 container.querySelectorAll('.livro-card[data-titulo]').forEach(card => {
@@ -933,6 +1035,118 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
+    // FUNÇÕES DE EDIÇÃO E EXCLUSÃO DE AVALIAÇÕES
+    // ================================================================
+    window.abrirModalEditarAvaliacao = function(postId) {
+        // Busca o post no banco e abre modal de edição
+        db.posts.get(postId).then(async (post) => {
+            if (!post) {
+                notificar('Avaliação não encontrada.', 'erro');
+                return;
+            }
+            if (post.usuario_id !== usuarioId) {
+                notificar('Você não tem permissão para editar esta avaliação.', 'erro');
+                return;
+            }
+
+            // Buscar livro para mostrar o título
+            const livro = await db.livros.get(post.livro_id);
+            const tituloLivro = livro ? livro.titulo : 'Livro não encontrado';
+
+            // Criar modal de edição
+            const existente = document.getElementById('modal-editar-avaliacao');
+            if (existente) existente.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'modal-editar-avaliacao';
+            modal.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(6px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 20px;
+                animation: fadeIn 0.3s ease;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 480px; width: 100%; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
+                    <button onclick="this.closest('#modal-editar-avaliacao').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
+                    <h3 style="margin: 0 0 8px 0;">Editar Avaliação</h3>
+                    <form id="form-editar-avaliacao">
+                        <div style="margin-bottom: 16px;">
+                            <label style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Livro</label>
+                            <input type="text" value="${tituloLivro}" disabled style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-sidebar); color: var(--text-primary);">
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label for="edit-avaliacao-nota" style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Nota (1-5)</label>
+                            <input type="number" id="edit-avaliacao-nota" min="1" max="5" value="${post.nota || 5}" style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-card); color: var(--text-primary);">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="edit-avaliacao-texto" style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Texto da avaliação</label>
+                            <textarea id="edit-avaliacao-texto" rows="4" style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-card); color: var(--text-primary); resize:vertical;">${post.texto || ''}</textarea>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <button type="button" onclick="this.closest('#modal-editar-avaliacao').remove()" style="flex:1; padding: 10px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancelar</button>
+                            <button type="submit" style="flex:2; padding: 10px; background: #2ecc71; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+            document.getElementById('form-editar-avaliacao').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const nota = parseInt(document.getElementById('edit-avaliacao-nota').value);
+                const texto = document.getElementById('edit-avaliacao-texto').value.trim();
+
+                if (nota < 1 || nota > 5) {
+                    notificar('Nota inválida (use 1 a 5).', 'erro');
+                    return;
+                }
+                if (!texto) {
+                    notificar('O texto da avaliação não pode ficar vazio.', 'erro');
+                    return;
+                }
+
+                try {
+                    await db.posts.update(post.id, {
+                        nota: nota,
+                        texto: texto
+                    });
+                    notificar('Avaliação atualizada com sucesso!');
+                    modal.remove();
+                    renderPerfil();
+                } catch (err) {
+                    console.error('Erro ao atualizar avaliação:', err);
+                    notificar('Erro ao salvar alterações.', 'erro');
+                }
+            });
+
+        }).catch(err => {
+            console.error('Erro ao buscar avaliação:', err);
+            notificar('Erro ao carregar dados da avaliação.', 'erro');
+        });
+    };
+
+    window.excluirAvaliacao = function(postId) {
+        if (!confirm('Tem certeza que deseja excluir esta avaliação? Esta ação é irreversível.')) return;
+
+        db.posts.delete(postId).then(() => {
+            notificar('Avaliação excluída com sucesso!');
+            renderPerfil();
+        }).catch(err => {
+            console.error('Erro ao excluir avaliação:', err);
+            notificar('Erro ao excluir avaliação.', 'erro');
+        });
+    };
+
+    // ================================================================
     // SEÇÃO: PERFIL (com posts e formulário)
     // ================================================================
     async function renderPerfil() {
@@ -955,6 +1169,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const livrosMap = {};
             livros.forEach(l => { livrosMap[l.id] = l.titulo; });
 
+            // Contagem de avaliações
+            const totalAvaliacoes = posts.length;
+
             let html = `
             <div class="card-user" style="text-align:center;">
                 <div style="display:flex; flex-direction:column; align-items:center;">
@@ -971,6 +1188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Bio:</strong> ${bio}</p>
                 <p><strong>Nascimento:</strong> ${nascimento}</p>
                 <p><strong>Lendo agora:</strong> ${lendoAgora}</p>
+                <p><strong>Avaliações feitas:</strong> ${totalAvaliacoes}</p>
             </div>
             <div class="card-user">
                 <h3>Criar avaliação</h3>
@@ -1010,7 +1228,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="background:var(--bg-sidebar); padding:12px 16px; border-radius:8px; margin-bottom:12px; border-left:3px solid var(--accent-color);">
                         ${livroNome ? `<p style="font-weight:600; color:var(--accent-color);">${livroNome} ${nota !== '—' ? `- ⭐ ${nota}/5` : ''}</p>` : ''}
                         <p style="margin:4px 0; color:var(--text-primary);">${post.texto}</p>
-                        <small style="color:var(--text-secondary);">${dataStr}</small>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                            <small style="color:var(--text-secondary);">${dataStr}</small>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="window.abrirModalEditarAvaliacao(${post.id})" style="background:#3498db; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Editar</button>
+                                <button onclick="window.excluirAvaliacao(${post.id})" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Excluir</button>
+                            </div>
+                        </div>
                     </div>`;
                 });
             }
