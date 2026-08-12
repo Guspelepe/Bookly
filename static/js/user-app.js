@@ -140,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Tornar a função global para ser chamada pelo onclick
     window.limparTodasNotificacoes = async function() {
         try {
             await aguardarBanco();
@@ -169,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
             badgeTopo.style.display = count > 0 ? 'inline-block' : 'none';
         }
 
-        // Atualiza badge flutuante
         await atualizarBadgeFlutuante();
     }
 
@@ -198,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.appendChild(btnNotificacoes);
         document.body.appendChild(container);
 
-        // Evento do botão comunidade
         btnComunidade.addEventListener('click', () => {
             const contentRight = document.getElementById('content-right');
             const containerComunidade = document.getElementById('comunidade-container');
@@ -218,7 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Evento do botão notificações
         btnNotificacoes.addEventListener('click', () => {
             const linkNotificacoes = document.querySelector('a[data-section="notificacoes"]');
             if (linkNotificacoes) {
@@ -656,7 +652,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             contentLeft.innerHTML = html;
 
-            // Cria botões flutuantes
             criarBotoesFlutuantes();
 
             const botoesFiltro = document.querySelectorAll('.btn-filtro');
@@ -1033,12 +1028,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     notificar('Escreva algo para publicar.', 'erro');
                     return;
                 }
+                if (!livroId) {
+                    notificar('Selecione um livro relacionado.', 'erro');
+                    return;
+                }
                 if (nota && (nota < 1 || nota > 5)) {
                     notificar('Nota inválida (use 1 a 5).', 'erro');
                     return;
                 }
 
-                await criarPost(texto, livroId || null, nota);
+                await criarPost(texto, parseInt(livroId), nota);
             });
 
         } catch (err) {
@@ -1301,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + BOTÕES)
+    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + AVALIAÇÕES)
     // ================================================================
     window.abrirLivro = async (titulo) => {
         try {
@@ -1316,6 +1315,81 @@ document.addEventListener('DOMContentLoaded', () => {
             const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
             const disponivel = !ativos.some(a => a.livro.split(' - ')[0].trim().toLowerCase() === tituloSimples);
 
+            // --- Busca avaliações de ambas as tabelas ---
+            const posts = await db.posts.where('livro_id').equals(livro.id).toArray();
+            const avaliacoesAntigas = await db.avaliacoes.where('livro').equals(livro.titulo).toArray();
+
+            const todasAvaliacoes = [
+                ...posts.map(p => ({
+                    usuario_id: p.usuario_id,
+                    nota: p.nota,
+                    texto: p.texto,
+                    data: p.data_criacao,
+                    tipo: 'post'
+                })),
+                ...avaliacoesAntigas.map(a => ({
+                    usuario_id: a.usuario_id,
+                    nota: a.nota,
+                    texto: a.comentario,
+                    data: a.data,
+                    tipo: 'avaliacao'
+                }))
+            ];
+            todasAvaliacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            // --- Média e contagem ---
+            const notas = todasAvaliacoes.map(a => a.nota).filter(n => n !== null && n !== undefined && typeof n === 'number');
+            const totalAvaliacoes = notas.length;
+            let media = 0;
+            if (totalAvaliacoes > 0) {
+                const soma = notas.reduce((a, b) => a + b, 0);
+                media = soma / totalAvaliacoes;
+            }
+
+            // --- Usuários (para exibir nome) ---
+            const usuariosMap = {};
+            if (todasAvaliacoes.length > 0) {
+                const ids = [...new Set(todasAvaliacoes.map(a => a.usuario_id))];
+                const usuarios = await db.clientes.where('id').anyOf(ids).toArray();
+                usuarios.forEach(u => { usuariosMap[u.id] = u; });
+            }
+
+            // --- Função para estrelas ---
+            const estrelas = (nota, total) => {
+                const full = Math.round(nota);
+                const vazias = 5 - full;
+                return '★'.repeat(full) + '☆'.repeat(vazias) + ` (${total})`;
+            };
+
+            const mediaHtml = totalAvaliacoes > 0
+                ? `<span style="color: #f1c40f; font-weight:600;">${estrelas(media, totalAvaliacoes)}</span>`
+                : '<span style="color: var(--text-secondary);">Sem avaliações</span>';
+
+            // --- Monta HTML das avaliações ---
+            let avaliacoesHtml = '';
+            if (todasAvaliacoes.length === 0) {
+                avaliacoesHtml = '<p style="color: var(--text-secondary); font-size:0.9rem;">Nenhuma avaliação ainda. Seja o primeiro a avaliar!</p>';
+            } else {
+                avaliacoesHtml = todasAvaliacoes.map(a => {
+                    const usuario = usuariosMap[a.usuario_id];
+                    const nome = usuario ? (usuario.apelido || usuario.nome) : 'Usuário';
+                    const data = new Date(a.data).toLocaleDateString('pt-BR') + ' ' +
+                                 new Date(a.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                    const notaStr = a.nota ? `⭐ ${a.nota}/5` : '';
+                    return `
+                        <div style="background: var(--bg-sidebar); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid var(--accent-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <strong style="color: var(--text-primary);">${nome}</strong>
+                                <span style="color: var(--text-secondary); font-size:0.8rem;">${data}</span>
+                            </div>
+                            ${notaStr ? `<div style="color: #f1c40f; font-weight:600;">${notaStr}</div>` : ''}
+                            <p style="margin: 4px 0 0; color: var(--text-secondary); font-size:0.9rem;">${a.texto}</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // --- Continuação do modal ---
             const existente = document.getElementById('modal-detalhes-livro');
             if (existente) existente.remove();
 
@@ -1337,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             modal.innerHTML = `
-                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
+                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
                     <button onclick="this.closest('#modal-detalhes-livro').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
                     <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
                         <div style="flex: 0 0 160px; max-width: 160px;">
@@ -1350,8 +1424,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Gênero:</strong> ${livro.genero || 'Não informado'}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Classificação:</strong> ${livro.classificacao || 'Livre'}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Status:</strong> <span style="color: ${disponivel ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${disponivel ? 'Disponível' : 'Indisponível'}</span></p>
+                            <p style="margin: 0 0 12px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Avaliação média:</strong> ${mediaHtml}</p>
                             <hr style="border-color: var(--border-color, #2a2a3a); margin: 12px 0;">
-                            <p style="margin: 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
+                            <p style="margin: 0 0 12px 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
+
+                            <div style="margin-top: 16px;">
+                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Avaliações</h4>
+                                <div style="max-height: 200px; overflow-y: auto; padding-right: 6px;">
+                                    ${avaliacoesHtml}
+                                </div>
+                            </div>
+
                             ${disponivel ? `
                                 <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
                             ` : `
@@ -1365,18 +1448,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.body.appendChild(modal);
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-            if (!document.getElementById('style-modal-fade')) {
-                const style = document.createElement('style');
-                style.id = 'style-modal-fade';
-                style.textContent = `@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`;
-                document.head.appendChild(style);
-            }
 
+            // Eventos dos botões
             const btnAlugar = document.getElementById('btn-alugar-deste-livro');
             if (btnAlugar) {
                 btnAlugar.addEventListener('click', () => {
                     modal.remove();
-                    abrirModalConfirmarAluguel(livro.titulo);
+                    window.abrirModalConfirmarAluguel(livro.titulo);
                 });
             }
 
@@ -1391,6 +1469,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         btnAviseMe.disabled = true;
                     }
                 });
+            }
+
+            if (!document.getElementById('style-modal-fade')) {
+                const style = document.createElement('style');
+                style.id = 'style-modal-fade';
+                style.textContent = `@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`;
+                document.head.appendChild(style);
             }
 
         } catch (err) {
@@ -1578,13 +1663,11 @@ document.addEventListener('DOMContentLoaded', () => {
             menuLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
 
-            // CONTROLE DE VISIBILIDADE DA COMUNIDADE
             const contentRight = document.getElementById('content-right');
             const containerComunidade = document.getElementById('comunidade-container');
 
             if (section === 'inicio') {
                 contentRight.style.display = 'block';
-                // Atualiza o ícone do botão flutuante
                 const btnFloat = document.querySelector('#btn-toggle-comunidade-flutuante');
                 if (btnFloat) {
                     btnFloat.textContent = '💬';
@@ -1602,7 +1685,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Esconde botões flutuantes fora da página inicial (opcional)
             const floatingActions = document.getElementById('floating-actions');
             if (floatingActions) {
                 floatingActions.style.display = (section === 'inicio') ? 'flex' : 'none';
@@ -1622,12 +1704,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-
-    // Botão de notificações no topo da comunidade (remover, pois já temos flutuante)
-    const btnNotificacoesTopo = document.getElementById('btn-notificacoes-topo');
-    if (btnNotificacoesTopo) {
-        btnNotificacoesTopo.style.display = 'none';
-    }
 
     // ================================================================
     // INICIALIZAÇÃO
