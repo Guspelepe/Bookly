@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// user-app.js – Painel do usuário (com carrossel, posts, avise-me)
+// user-app.js – Painel do usuário (com carrossel, posts, debates)
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -313,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const avaliacoesAntigas = await db.avaliacoes.toArray();
         const notasPorLivro = {};
 
-        // Processar posts
         for (const p of posts) {
             if (p.livro_id && p.nota !== null && p.nota !== undefined) {
                 const livro = await db.livros.get(p.livro_id);
@@ -325,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        // Processar avaliacoes antigas
         for (const a of avaliacoesAntigas) {
             if (a.livro && a.nota !== null && a.nota !== undefined) {
                 const chave = a.livro.trim().toLowerCase();
@@ -351,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = html;
 
-        // Atualizar status de disponibilidade
         const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
         const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
         document.querySelectorAll('#carrossel-track .livro-card').forEach(card => {
@@ -462,7 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
             const novos = livros.sort((a, b) => b.id - a.id).slice(0, 5);
 
-            // Buscar avaliações para calcular média
             const posts = await db.posts.toArray();
             const avaliacoesAntigas = await db.avaliacoes.toArray();
             const notasPorLivro = {};
@@ -712,12 +708,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
             const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
 
-            // Buscar avaliações para calcular média dos livros na grade completa
             const posts = await db.posts.toArray();
             const avaliacoesAntigas = await db.avaliacoes.toArray();
             const notasPorLivro = {};
 
-            // Processar posts
             for (const p of posts) {
                 if (p.livro_id && p.nota !== null && p.nota !== undefined) {
                     const livro = await db.livros.get(p.livro_id);
@@ -729,7 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-            // Processar avaliacoes antigas
             for (const a of avaliacoesAntigas) {
                 if (a.livro && a.nota !== null && a.nota !== undefined) {
                     const chave = a.livro.trim().toLowerCase();
@@ -1035,118 +1028,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // FUNÇÕES DE EDIÇÃO E EXCLUSÃO DE AVALIAÇÕES
-    // ================================================================
-    window.abrirModalEditarAvaliacao = function(postId) {
-        // Busca o post no banco e abre modal de edição
-        db.posts.get(postId).then(async (post) => {
-            if (!post) {
-                notificar('Avaliação não encontrada.', 'erro');
-                return;
-            }
-            if (post.usuario_id !== usuarioId) {
-                notificar('Você não tem permissão para editar esta avaliação.', 'erro');
-                return;
-            }
-
-            // Buscar livro para mostrar o título
-            const livro = await db.livros.get(post.livro_id);
-            const tituloLivro = livro ? livro.titulo : 'Livro não encontrado';
-
-            // Criar modal de edição
-            const existente = document.getElementById('modal-editar-avaliacao');
-            if (existente) existente.remove();
-
-            const modal = document.createElement('div');
-            modal.id = 'modal-editar-avaliacao';
-            modal.style.cssText = `
-                position: fixed;
-                inset: 0;
-                background: rgba(0, 0, 0, 0.7);
-                backdrop-filter: blur(6px);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-                padding: 20px;
-                animation: fadeIn 0.3s ease;
-            `;
-
-            modal.innerHTML = `
-                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 480px; width: 100%; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
-                    <button onclick="this.closest('#modal-editar-avaliacao').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
-                    <h3 style="margin: 0 0 8px 0;">Editar Avaliação</h3>
-                    <form id="form-editar-avaliacao">
-                        <div style="margin-bottom: 16px;">
-                            <label style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Livro</label>
-                            <input type="text" value="${tituloLivro}" disabled style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-sidebar); color: var(--text-primary);">
-                        </div>
-                        <div style="margin-bottom: 16px;">
-                            <label for="edit-avaliacao-nota" style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Nota (1-5)</label>
-                            <input type="number" id="edit-avaliacao-nota" min="1" max="5" value="${post.nota || 5}" style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-card); color: var(--text-primary);">
-                        </div>
-                        <div style="margin-bottom: 20px;">
-                            <label for="edit-avaliacao-texto" style="display:block; margin-bottom: 4px; font-weight:500; color: var(--text-secondary);">Texto da avaliação</label>
-                            <textarea id="edit-avaliacao-texto" rows="4" style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:6px; background: var(--bg-card); color: var(--text-primary); resize:vertical;">${post.texto || ''}</textarea>
-                        </div>
-                        <div style="display: flex; gap: 12px;">
-                            <button type="button" onclick="this.closest('#modal-editar-avaliacao').remove()" style="flex:1; padding: 10px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancelar</button>
-                            <button type="submit" style="flex:2; padding: 10px; background: #2ecc71; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Salvar</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
-            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-
-            document.getElementById('form-editar-avaliacao').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const nota = parseInt(document.getElementById('edit-avaliacao-nota').value);
-                const texto = document.getElementById('edit-avaliacao-texto').value.trim();
-
-                if (nota < 1 || nota > 5) {
-                    notificar('Nota inválida (use 1 a 5).', 'erro');
-                    return;
-                }
-                if (!texto) {
-                    notificar('O texto da avaliação não pode ficar vazio.', 'erro');
-                    return;
-                }
-
-                try {
-                    await db.posts.update(post.id, {
-                        nota: nota,
-                        texto: texto
-                    });
-                    notificar('Avaliação atualizada com sucesso!');
-                    modal.remove();
-                    renderPerfil();
-                } catch (err) {
-                    console.error('Erro ao atualizar avaliação:', err);
-                    notificar('Erro ao salvar alterações.', 'erro');
-                }
-            });
-
-        }).catch(err => {
-            console.error('Erro ao buscar avaliação:', err);
-            notificar('Erro ao carregar dados da avaliação.', 'erro');
-        });
-    };
-
-    window.excluirAvaliacao = function(postId) {
-        if (!confirm('Tem certeza que deseja excluir esta avaliação? Esta ação é irreversível.')) return;
-
-        db.posts.delete(postId).then(() => {
-            notificar('Avaliação excluída com sucesso!');
-            renderPerfil();
-        }).catch(err => {
-            console.error('Erro ao excluir avaliação:', err);
-            notificar('Erro ao excluir avaliação.', 'erro');
-        });
-    };
-
-    // ================================================================
     // SEÇÃO: PERFIL (com posts e formulário)
     // ================================================================
     async function renderPerfil() {
@@ -1162,15 +1043,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const lendoAgora = usuarioAtual.lendo_agora || 'Nenhum livro no momento.';
             const apelido    = usuarioAtual.apelido || '';
 
+            // Busca quantidade de avaliações (posts) do usuário
+            const totalAvaliacoes = await db.posts.where('usuario_id').equals(usuarioId).count();
+
             const posts = (await db.posts.where('usuario_id').equals(usuarioId).toArray())
                 .sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
 
             const livros = await db.livros.toArray();
             const livrosMap = {};
             livros.forEach(l => { livrosMap[l.id] = l.titulo; });
-
-            // Contagem de avaliações
-            const totalAvaliacoes = posts.length;
 
             let html = `
             <div class="card-user" style="text-align:center;">
@@ -1226,15 +1107,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const nota = post.nota || '—';
                     html += `
                     <div style="background:var(--bg-sidebar); padding:12px 16px; border-radius:8px; margin-bottom:12px; border-left:3px solid var(--accent-color);">
-                        ${livroNome ? `<p style="font-weight:600; color:var(--accent-color);">${livroNome} ${nota !== '—' ? `- ⭐ ${nota}/5` : ''}</p>` : ''}
-                        <p style="margin:4px 0; color:var(--text-primary);">${post.texto}</p>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-                            <small style="color:var(--text-secondary);">${dataStr}</small>
-                            <div style="display:flex; gap:6px;">
-                                <button onclick="window.abrirModalEditarAvaliacao(${post.id})" style="background:#3498db; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Editar</button>
-                                <button onclick="window.excluirAvaliacao(${post.id})" style="background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Excluir</button>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            ${livroNome ? `<p style="font-weight:600; color:var(--accent-color); margin:0;">${livroNome} ${nota !== '—' ? `- ⭐ ${nota}/5` : ''}</p>` : ''}
+                            <div>
+                                <button onclick="editarPost(${post.id})" style="background:#3498db; color:#fff; border:none; padding:2px 10px; border-radius:4px; cursor:pointer; font-size:0.7rem; margin-right:4px;">Editar</button>
+                                <button onclick="excluirPost(${post.id})" style="background:#e74c3c; color:#fff; border:none; padding:2px 10px; border-radius:4px; cursor:pointer; font-size:0.7rem;">Excluir</button>
                             </div>
                         </div>
+                        <p style="margin:4px 0; color:var(--text-primary);">${post.texto}</p>
+                        <small style="color:var(--text-secondary);">${dataStr}</small>
                     </div>`;
                 });
             }
@@ -1263,6 +1144,69 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 await criarPost(texto, parseInt(livroId), nota);
             });
+
+            // Funções globais para editar/excluir post
+            window.editarPost = async function(postId) {
+                const post = await db.posts.get(postId);
+                if (!post) return;
+                // Abrir modal de edição
+                const modal = document.createElement('div');
+                modal.id = 'modal-editar-post';
+                modal.style.cssText = `
+                    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+                    display: flex; align-items: center; justify-content: center; z-index: 9999;
+                `;
+                modal.innerHTML = `
+                    <div style="background: var(--bg-card); color: var(--text-primary); border-radius: 16px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--border-color);">
+                        <h3 style="margin-top:0;">Editar Avaliação</h3>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">Livro</label>
+                            <input type="text" value="${post.livro_id ? livrosMap[post.livro_id] : 'Não especificado'}" disabled style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-sidebar); color:var(--text-secondary);">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">Nota (1-5)</label>
+                            <input type="number" id="edit-post-nota" min="1" max="5" value="${post.nota || ''}" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">Texto da avaliação</label>
+                            <textarea id="edit-post-texto" rows="4" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">${post.texto}</textarea>
+                        </div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                            <button onclick="this.closest('#modal-editar-post').remove()" style="padding:8px 16px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:6px; cursor:pointer;">Cancelar</button>
+                            <button id="btn-salvar-edicao-post" style="padding:8px 16px; background:var(--accent-color); color:#fff; border:none; border-radius:6px; cursor:pointer;">Salvar</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+                document.getElementById('btn-salvar-edicao-post').addEventListener('click', async () => {
+                    const novaNota = parseInt(document.getElementById('edit-post-nota').value);
+                    const novoTexto = document.getElementById('edit-post-texto').value.trim();
+                    if (!novoTexto) {
+                        notificar('O texto não pode estar vazio.', 'erro');
+                        return;
+                    }
+                    if (novaNota && (novaNota < 1 || novaNota > 5)) {
+                        notificar('Nota inválida (use 1 a 5).', 'erro');
+                        return;
+                    }
+                    await db.posts.update(postId, {
+                        nota: novaNota || null,
+                        texto: novoTexto
+                    });
+                    modal.remove();
+                    notificar('Avaliação atualizada!');
+                    renderPerfil();
+                });
+            };
+
+            window.excluirPost = async function(postId) {
+                if (!confirm('Tem certeza que deseja excluir esta avaliação?')) return;
+                await db.posts.delete(postId);
+                notificar('Avaliação excluída.');
+                renderPerfil();
+            };
 
         } catch (err) {
             console.error('Erro ao renderizar perfil:', err);
@@ -1524,7 +1468,257 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + AVALIAÇÕES)
+    // FUNÇÕES DE DEBATES
+    // ================================================================
+
+    // Função para enviar notificação de novas respostas
+    async function notificarParticipantes(debateId, usuarioQueRespondeuId, livroTitulo) {
+        try {
+            await aguardarBanco();
+            // Buscar o debate
+            const debate = await db.debates.get(debateId);
+            if (!debate) return;
+
+            // Buscar respostas existentes para pegar todos os usuários que participaram
+            const respostas = await db.respostas.where('debate_id').equals(debateId).toArray();
+            const participantesIds = new Set();
+            participantesIds.add(debate.usuario_id); // criador
+            respostas.forEach(r => participantesIds.add(r.usuario_id));
+
+            // Remover o próprio usuário que respondeu
+            participantesIds.delete(usuarioQueRespondeuId);
+
+            // Para cada participante, criar notificação
+            for (const uid of participantesIds) {
+                // Verificar se o usuário ainda existe
+                const user = await db.clientes.get(uid);
+                if (!user) continue;
+
+                // Verificar se já existe notificação igual nas últimas 24h (para não spam)
+                const ultimasNotificacoes = await db.notificacoes
+                    .where('usuario_id').equals(uid)
+                    .and(n => n.mensagem.includes(debate.titulo) && n.tipo === 'debate')
+                    .toArray();
+
+                const jaNotificado = ultimasNotificacoes.some(n => {
+                    const dataNotif = new Date(n.data_criacao);
+                    const agora = new Date();
+                    const diffHoras = (agora - dataNotif) / (1000 * 60 * 60);
+                    return diffHoras < 24;
+                });
+
+                if (!jaNotificado) {
+                    await db.notificacoes.add({
+                        usuario_id: uid,
+                        mensagem: `📢 O debate "${debate.titulo}" no livro "${livroTitulo}" teve novas respostas.`,
+                        lida: false,
+                        data_criacao: new Date().toISOString(),
+                        tipo: 'debate'
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao notificar participantes:', err);
+        }
+    }
+
+    // Função para dar like (debate ou resposta)
+    window.darLike = async function(itemId, tipo, evento) {
+        if (evento) evento.stopPropagation();
+        try {
+            await aguardarBanco();
+            let item;
+            if (tipo === 'debate') {
+                item = await db.debates.get(itemId);
+                if (!item) return;
+                const likes = item.likes || [];
+                if (likes.includes(usuarioId)) {
+                    // Remove like
+                    item.likes = likes.filter(id => id !== usuarioId);
+                } else {
+                    item.likes.push(usuarioId);
+                }
+                await db.debates.update(itemId, { likes: item.likes });
+                // Atualizar a UI do debate
+                const debateCard = document.querySelector(`[data-debate-id="${itemId}"]`);
+                if (debateCard) {
+                    const likeBtn = debateCard.querySelector('.like-btn');
+                    if (likeBtn) {
+                        const count = item.likes.length;
+                        likeBtn.innerHTML = `❤️ ${count}`;
+                        if (item.likes.includes(usuarioId)) {
+                            likeBtn.style.color = '#e74c3c';
+                        } else {
+                            likeBtn.style.color = 'var(--text-secondary)';
+                        }
+                    }
+                }
+            } else if (tipo === 'resposta') {
+                item = await db.respostas.get(itemId);
+                if (!item) return;
+                const likes = item.likes || [];
+                if (likes.includes(usuarioId)) {
+                    item.likes = likes.filter(id => id !== usuarioId);
+                } else {
+                    item.likes.push(usuarioId);
+                }
+                await db.respostas.update(itemId, { likes: item.likes });
+                // Atualizar a UI da resposta
+                const respostaElement = document.querySelector(`[data-resposta-id="${itemId}"]`);
+                if (respostaElement) {
+                    const likeBtn = respostaElement.querySelector('.like-btn');
+                    if (likeBtn) {
+                        const count = item.likes.length;
+                        likeBtn.innerHTML = `❤️ ${count}`;
+                        if (item.likes.includes(usuarioId)) {
+                            likeBtn.style.color = '#e74c3c';
+                        } else {
+                            likeBtn.style.color = 'var(--text-secondary)';
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao dar like:', err);
+            notificar('Erro ao processar like.', 'erro');
+        }
+    };
+
+    // Função para criar debate
+    window.criarDebate = async function(livroId) {
+        try {
+            const livro = await db.livros.get(livroId);
+            if (!livro) {
+                notificar('Livro não encontrado.', 'erro');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'modal-criar-debate';
+            modal.style.cssText = `
+                position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+                display: flex; align-items: center; justify-content: center; z-index: 9999;
+            `;
+            modal.innerHTML = `
+                <div style="background: var(--bg-card); color: var(--text-primary); border-radius: 16px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--border-color);">
+                    <h3 style="margin-top:0;">Criar Debate para "${livro.titulo}"</h3>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; margin-bottom:4px; font-weight:600;">Título do debate</label>
+                        <input type="text" id="debate-titulo" placeholder="Ex: Seu personagem favorito" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; margin-bottom:4px; font-weight:600;">Mensagem inicial</label>
+                        <textarea id="debate-mensagem" rows="4" placeholder="Escreva sua opinião..." style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);"></textarea>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button onclick="this.closest('#modal-criar-debate').remove()" style="padding:8px 16px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:6px; cursor:pointer;">Cancelar</button>
+                        <button id="btn-confirmar-criar-debate" style="padding:8px 16px; background:var(--accent-color); color:#fff; border:none; border-radius:6px; cursor:pointer;">Criar Debate</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+            document.getElementById('btn-confirmar-criar-debate').addEventListener('click', async () => {
+                const titulo = document.getElementById('debate-titulo').value.trim();
+                const mensagem = document.getElementById('debate-mensagem').value.trim();
+                if (!titulo || !mensagem) {
+                    notificar('Preencha todos os campos.', 'erro');
+                    return;
+                }
+
+                await db.debates.add({
+                    livro_id: livroId,
+                    titulo: titulo,
+                    mensagem: mensagem,
+                    usuario_id: usuarioId,
+                    data_criacao: new Date().toISOString(),
+                    likes: []
+                });
+
+                // Notificar o próprio usuário (opcional)
+                await criarNotificacao(
+                    `Você criou o debate "${titulo}" no livro "${livro.titulo}".`,
+                    'debate'
+                );
+
+                modal.remove();
+                notificar('Debate criado com sucesso!');
+                // Reabrir o livro para mostrar o novo debate
+                abrirLivro(livro.titulo);
+            });
+
+        } catch (err) {
+            console.error('Erro ao criar debate:', err);
+            notificar('Erro ao criar debate.', 'erro');
+        }
+    };
+
+    // Função para adicionar resposta
+    window.adicionarResposta = async function(debateId, livroTitulo) {
+        try {
+            const debate = await db.debates.get(debateId);
+            if (!debate) {
+                notificar('Debate não encontrado.', 'erro');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'modal-responder-debate';
+            modal.style.cssText = `
+                position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+                display: flex; align-items: center; justify-content: center; z-index: 9999;
+            `;
+            modal.innerHTML = `
+                <div style="background: var(--bg-card); color: var(--text-primary); border-radius: 16px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--border-color);">
+                    <h3 style="margin-top:0;">Responder ao debate</h3>
+                    <p style="color: var(--text-secondary); margin-bottom:12px;"><strong>${debate.titulo}</strong></p>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; margin-bottom:4px; font-weight:600;">Sua resposta</label>
+                        <textarea id="resposta-texto" rows="4" placeholder="Escreva sua opinião..." style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);"></textarea>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button onclick="this.closest('#modal-responder-debate').remove()" style="padding:8px 16px; background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:6px; cursor:pointer;">Cancelar</button>
+                        <button id="btn-confirmar-resposta" style="padding:8px 16px; background:var(--accent-color); color:#fff; border:none; border-radius:6px; cursor:pointer;">Enviar Resposta</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+            document.getElementById('btn-confirmar-resposta').addEventListener('click', async () => {
+                const texto = document.getElementById('resposta-texto').value.trim();
+                if (!texto) {
+                    notificar('Escreva uma resposta.', 'erro');
+                    return;
+                }
+
+                await db.respostas.add({
+                    debate_id: debateId,
+                    mensagem: texto,
+                    usuario_id: usuarioId,
+                    data_criacao: new Date().toISOString(),
+                    likes: []
+                });
+
+                // Notificar participantes
+                await notificarParticipantes(debateId, usuarioId, livroTitulo);
+
+                modal.remove();
+                notificar('Resposta adicionada!');
+                // Reabrir o livro
+                const livro = await db.livros.get(debate.livro_id);
+                if (livro) abrirLivro(livro.titulo);
+            });
+
+        } catch (err) {
+            console.error('Erro ao adicionar resposta:', err);
+            notificar('Erro ao adicionar resposta.', 'erro');
+        }
+    };
+
+    // ================================================================
+    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM ABAS: SOBRE | DEBATES)
     // ================================================================
     window.abrirLivro = async (titulo) => {
         try {
@@ -1539,7 +1733,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
             const disponivel = !ativos.some(a => a.livro.split(' - ')[0].trim().toLowerCase() === tituloSimples);
 
-            // --- Busca avaliações de ambas as tabelas ---
+            // --- Busca avaliações ---
             const posts = await db.posts.where('livro_id').equals(livro.id).toArray();
             const avaliacoesAntigas = await db.avaliacoes.where('livro').equals(livro.titulo).toArray();
 
@@ -1561,7 +1755,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
             todasAvaliacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
 
-            // --- Média e contagem ---
             const notas = todasAvaliacoes.map(a => a.nota).filter(n => n !== null && n !== undefined && typeof n === 'number');
             const totalAvaliacoes = notas.length;
             let media = 0;
@@ -1570,7 +1763,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 media = soma / totalAvaliacoes;
             }
 
-            // --- Usuários (para exibir nome) ---
             const usuariosMap = {};
             if (todasAvaliacoes.length > 0) {
                 const ids = [...new Set(todasAvaliacoes.map(a => a.usuario_id))];
@@ -1578,7 +1770,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 usuarios.forEach(u => { usuariosMap[u.id] = u; });
             }
 
-            // --- Função para estrelas ---
             const estrelas = (nota, total) => {
                 const full = Math.round(nota);
                 const vazias = 5 - full;
@@ -1589,7 +1780,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<span style="color: #f1c40f; font-weight:600;">${estrelas(media, totalAvaliacoes)}</span>`
                 : '<span style="color: var(--text-secondary);">Sem avaliações</span>';
 
-            // --- Monta HTML das avaliações ---
             let avaliacoesHtml = '';
             if (todasAvaliacoes.length === 0) {
                 avaliacoesHtml = '<p style="color: var(--text-secondary); font-size:0.9rem;">Nenhuma avaliação ainda. Seja o primeiro a avaliar!</p>';
@@ -1598,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const usuario = usuariosMap[a.usuario_id];
                     const nome = usuario ? (usuario.apelido || usuario.nome) : 'Usuário';
                     const data = new Date(a.data).toLocaleDateString('pt-BR') + ' ' +
-                                 new Date(a.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                                new Date(a.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
                     const notaStr = a.nota ? `⭐ ${a.nota}/5` : '';
                     return `
                         <div style="background: var(--bg-sidebar); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid var(--accent-color);">
@@ -1613,7 +1803,90 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('');
             }
 
-            // --- Continuação do modal ---
+            // --- Buscar debates do livro ---
+            const debates = await db.debates.where('livro_id').equals(livro.id).toArray();
+            debates.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
+
+            const usuariosDebate = {};
+            const idsDebate = debates.map(d => d.usuario_id);
+            if (idsDebate.length > 0) {
+                const usuarios = await db.clientes.where('id').anyOf(idsDebate).toArray();
+                usuarios.forEach(u => { usuariosDebate[u.id] = u; });
+            }
+
+            let debatesHtml = '';
+            if (debates.length === 0) {
+                debatesHtml = '<p style="color: var(--text-secondary); font-size:0.9rem;">Nenhum debate ainda. Seja o primeiro a criar!</p>';
+            } else {
+                for (const debate of debates) {
+                    const respostas = await db.respostas.where('debate_id').equals(debate.id).toArray();
+                    respostas.sort((a, b) => new Date(a.data_criacao) - new Date(b.data_criacao));
+
+                    const idsRespostas = respostas.map(r => r.usuario_id);
+                    const usuariosResp = {};
+                    if (idsRespostas.length > 0) {
+                        const users = await db.clientes.where('id').anyOf(idsRespostas).toArray();
+                        users.forEach(u => { usuariosResp[u.id] = u; });
+                    }
+
+                    const autor = usuariosDebate[debate.usuario_id] || { apelido: 'Usuário', foto: '' };
+                    const autorNome = autor.apelido || autor.nome || 'Usuário';
+                    const autorFoto = autor.foto || 'static/src/avatares/usuario.jpg';
+                    const dataDebate = new Date(debate.data_criacao).toLocaleDateString('pt-BR') + ' ' +
+                                    new Date(debate.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+                    const likesCount = (debate.likes || []).length;
+                    const curtiu = (debate.likes || []).includes(usuarioId);
+
+                    let respostasHtml = respostas.map(r => {
+                        const user = usuariosResp[r.usuario_id] || { apelido: 'Usuário', foto: '' };
+                        const nome = user.apelido || user.nome || 'Usuário';
+                        const foto = user.foto || 'static/src/avatares/usuario.jpg';
+                        const dataResp = new Date(r.data_criacao).toLocaleDateString('pt-BR') + ' ' +
+                                        new Date(r.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                        const rLikes = (r.likes || []).length;
+                        const rCurtiu = (r.likes || []).includes(usuarioId);
+                        return `
+                            <div data-resposta-id="${r.id}" style="margin-left: 40px; margin-top: 12px; padding: 10px 14px; background: var(--bg-sidebar); border-radius: 8px; border-left: 2px solid var(--accent-color);">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <img src="${foto}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" onerror="this.src='static/src/avatares/usuario.jpg'">
+                                    <strong style="color: var(--text-primary);">${nome}</strong>
+                                    <span style="color: var(--text-secondary); font-size:0.7rem;">${dataResp}</span>
+                                </div>
+                                <p style="margin: 6px 0 4px 0; color: var(--text-primary);">${r.mensagem}</p>
+                                <button onclick="darLike(${r.id}, 'resposta', event)" class="like-btn" style="background:none; border:none; cursor:pointer; color: ${rCurtiu ? '#e74c3c' : 'var(--text-secondary)'}; font-size:0.85rem;">
+                                    ❤️ ${rLikes}
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+
+                    debatesHtml += `
+                        <div data-debate-id="${debate.id}" style="background: var(--bg-sidebar); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <img src="${autorFoto}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" onerror="this.src='static/src/avatares/usuario.jpg'">
+                                <div>
+                                    <strong style="color: var(--text-primary);">${autorNome}</strong>
+                                    <span style="color: var(--text-secondary); font-size:0.75rem; margin-left: 8px;">${dataDebate}</span>
+                                </div>
+                            </div>
+                            <h4 style="margin: 0 0 6px 0; color: var(--accent-color);">${debate.titulo}</h4>
+                            <p style="margin: 0 0 8px 0; color: var(--text-primary);">${debate.mensagem}</p>
+                            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                <button onclick="darLike(${debate.id}, 'debate', event)" class="like-btn" style="background:none; border:none; cursor:pointer; color: ${curtiu ? '#e74c3c' : 'var(--text-secondary)'}; font-size:0.85rem;">
+                                    ❤️ ${likesCount}
+                                </button>
+                                <button onclick="adicionarResposta(${debate.id}, '${livro.titulo.replace(/'/g, "\\'")}')" style="background:none; border:none; color: var(--accent-color); cursor:pointer; font-size:0.85rem;">💬 Responder</button>
+                            </div>
+                            <div style="margin-top: 12px;">
+                                ${respostasHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // --- Construção do modal com abas ---
             const existente = document.getElementById('modal-detalhes-livro');
             if (existente) existente.remove();
 
@@ -1635,36 +1908,60 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             modal.innerHTML = `
-                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
+                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 24px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
                     <button onclick="this.closest('#modal-detalhes-livro').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
+
+                    <!-- Layout duas colunas -->
                     <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
-                        <div style="flex: 0 0 160px; max-width: 160px;">
+                        <!-- Coluna esquerda: capa + botão alugar -->
+                        <div style="flex: 0 0 180px; max-width: 180px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
                             <img src="${capaUrl}" alt="${livro.titulo}" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: block;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:40px 0; color:var(--text-secondary);\\'>Capa não disponível</div>'">
+                            
+                            ${disponivel ? `
+                                <button id="btn-alugar-deste-livro" style="background: #2ecc71; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
+                            ` : `
+                                <button id="btn-avise-me" style="background: #f39c12; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Avise-me quando disponível</button>
+                                <p style="margin-top: 4px; color: #e74c3c; text-align:center; font-size:0.8rem;">Indisponível</p>
+                            `}
                         </div>
+
+                        <!-- Coluna direita: informações + abas -->
                         <div style="flex: 1; min-width: 200px;">
                             <h2 style="margin: 0 0 8px 0; font-size: 1.6rem; color: var(--text-primary, #fff);">${livro.titulo}</h2>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Autor:</strong> ${livro.autor}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Editora:</strong> ${livro.editora} (${livro.ano})</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Gênero:</strong> ${livro.genero || 'Não informado'}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Classificação:</strong> ${livro.classificacao || 'Livre'}</p>
-                            <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Status:</strong> <span style="color: ${disponivel ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${disponivel ? 'Disponível' : 'Indisponível'}</span></p>
-                            <p style="margin: 0 0 12px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Avaliação média:</strong> ${mediaHtml}</p>
-                            <hr style="border-color: var(--border-color, #2a2a3a); margin: 12px 0;">
-                            <p style="margin: 0 0 12px 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
+                            <p style="margin: 0 0 12px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Status:</strong> <span style="color: ${disponivel ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${disponivel ? 'Disponível' : 'Indisponível'}</span></p>
 
-                            <div style="margin-top: 16px;">
-                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Avaliações</h4>
-                                <div style="max-height: 200px; overflow-y: auto; padding-right: 6px;">
-                                    ${avaliacoesHtml}
+                            <!-- Abas -->
+                            <div class="tabs" style="margin-top: 12px;">
+                                <button class="tab-btn active" data-tab="sobre">Sobre</button>
+                                <button class="tab-btn" data-tab="debates">Debates</button>
+                            </div>
+
+                            <!-- Painel Sobre -->
+                            <div class="tab-panel active" id="tab-sobre">
+                                <p style="margin: 0 0 12px 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
+                                
+                                <div>
+                                    <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Avaliações</h4>
+                                    <div style="max-height: 200px; overflow-y: auto; padding-right: 6px;">
+                                        ${avaliacoesHtml}
+                                    </div>
                                 </div>
                             </div>
 
-                            ${disponivel ? `
-                                <button id="btn-alugar-deste-livro" style="margin-top: 16px; background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
-                            ` : `
-                                <button id="btn-avise-me" style="margin-top: 16px; background: #f39c12; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Avise-me quando disponível</button>
-                                <p style="margin-top: 8px; color: #e74c3c; text-align:center; font-size:0.9rem;">Este livro não está disponível no momento.</p>
-                            `}
+                            <!-- Painel Debates -->
+                            <div class="tab-panel" id="tab-debates">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <h4 style="margin: 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Debates</h4>
+                                    <button onclick="criarDebate(${livro.id})" style="background: var(--accent-color); color: #fff; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size:0.8rem;">+ Criar Debate</button>
+                                </div>
+                                <div style="max-height: 300px; overflow-y: auto; padding-right: 6px;">
+                                    ${debatesHtml}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1673,7 +1970,25 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(modal);
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-            // Eventos dos botões
+            // --- Eventos das abas ---
+            const tabBtns = modal.querySelectorAll('.tab-btn');
+            const tabPanels = {
+                sobre: modal.querySelector('#tab-sobre'),
+                debates: modal.querySelector('#tab-debates')
+            };
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const tab = btn.dataset.tab;
+                    Object.keys(tabPanels).forEach(key => {
+                        tabPanels[key].classList.toggle('active', key === tab);
+                    });
+                });
+            });
+
+            // --- Eventos dos botões de alugar / avise-me ---
             const btnAlugar = document.getElementById('btn-alugar-deste-livro');
             if (btnAlugar) {
                 btnAlugar.addEventListener('click', () => {
@@ -1700,6 +2015,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 style.id = 'style-modal-fade';
                 style.textContent = `@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`;
                 document.head.appendChild(style);
+            }
+
+            // Adicionar estilos das abas (já devem estar no CSS, mas caso não, adicionamos inline)
+            const styleTabs = document.createElement('style');
+            styleTabs.textContent = `
+                .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
+                .tab-btn { background: transparent; color: var(--text-secondary); border: none; padding: 8px 20px; font-size: 0.95rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+                .tab-btn:hover { color: var(--text-primary); }
+                .tab-btn.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+                .tab-panel { display: none; }
+                .tab-panel.active { display: block; }
+            `;
+            if (!document.getElementById('style-tabs')) {
+                styleTabs.id = 'style-tabs';
+                document.head.appendChild(styleTabs);
             }
 
         } catch (err) {

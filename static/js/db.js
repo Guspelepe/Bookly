@@ -4,8 +4,8 @@
 
 window.db = new Dexie('BibliotecaDB');
 
-// ===== VERSÃO 8 – adiciona campo capa nos livros =====
-db.version(13).stores({
+// ===== VERSÃO 14 – adiciona debates e respostas =====
+db.version(14).stores({
     clientes: '++id, cpf, nome, apelido, foto, livros_lidos, media_estrelas, lendo_agora, bio, nascimento',
     alugueis: '++id, cliente_id, status, livro, dias_atraso, multa',
     livros: '++id, titulo, genero, capa',
@@ -16,8 +16,11 @@ db.version(13).stores({
     solicitacoes_aluguel: '++id, tipo, cliente_id, cliente_nome, livro, data_solicitacao, data_locacao, data_devolucao_prevista, status, bibliotecario, multa_calculada, resposta',
     notificacoes: '++id, usuario_id, mensagem, lida, data_criacao, tipo',
     avisos_disponibilidade: '++id, usuario_id, livro_id, status, data_criacao',
-    posts: '++id, usuario_id, livro_id, texto, data_criacao'
+    posts: '++id, usuario_id, livro_id, texto, data_criacao',
+    debates: '++id, livro_id, titulo, mensagem, usuario_id, data_criacao, likes',
+    respostas: '++id, debate_id, mensagem, usuario_id, data_criacao, likes' 
 });
+
 
 // ==========================================
 // 1. LISTA DE LIVROS (atualizada – apenas os que você enviou)
