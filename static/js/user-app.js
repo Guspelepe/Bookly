@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ================================================================
-    // RENDERIZAR ABA (destaques, novos, top usuários)
+    // RENDERIZAR ABA (destaques, populares, novos, top usuários)
     // ================================================================
     async function renderizarAba(tipo) {
         const container = document.getElementById('grade-destaques');
@@ -417,6 +417,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let html = '';
+
+        if (tipo === 'populares') {
+            const livros = await db.livros.toArray();
+            const posts = await db.posts.toArray();
+            const avaliacoesAntigas = await db.avaliacoes.toArray();
+            const notasPorLivro = {};
+
+            for (const p of posts) {
+                if (p.livro_id && p.nota !== null && p.nota !== undefined) {
+                    const livro = await db.livros.get(p.livro_id);
+                    if (livro) {
+                        const chave = livro.titulo.trim().toLowerCase();
+                        if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                        notasPorLivro[chave].soma += p.nota;
+                        notasPorLivro[chave].count += 1;
+                    }
+                }
+            }
+            for (const a of avaliacoesAntigas) {
+                if (a.livro && a.nota !== null && a.nota !== undefined) {
+                    const chave = a.livro.trim().toLowerCase();
+                    if (!notasPorLivro[chave]) notasPorLivro[chave] = { soma: 0, count: 0 };
+                    notasPorLivro[chave].soma += a.nota;
+                    notasPorLivro[chave].count += 1;
+                }
+            }
+
+            const livrosComMedia = livros.map(livro => {
+                const chave = livro.titulo.trim().toLowerCase();
+                const dados = notasPorLivro[chave] || { soma: 0, count: 0 };
+                const media = dados.count > 0 ? dados.soma / dados.count : 0;
+                return { ...livro, media, count: dados.count };
+            });
+
+            livrosComMedia.sort((a, b) => b.media - a.media || b.count - a.count);
+            let populares = livrosComMedia.filter(l => l.media > 0).slice(0, 5);
+
+            if (populares.length === 0) {
+                populares = livros.sort(() => 0.5 - Math.random()).slice(0, 5);
+                populares = populares.map(l => ({ ...l, media: 0, count: 0 }));
+            }
+
+            const ativos = await db.alugueis.where({ status: 'ativo' }).toArray();
+            const alugadosSet = new Set(ativos.map(a => a.livro.split(' - ')[0].trim().toLowerCase()));
+
+            html = '<div class="grade-livros">';
+            populares.forEach(livro => {
+                const tituloSimples = livro.titulo.split(' - ')[0].trim().toLowerCase();
+                const disponivel = !alugadosSet.has(tituloSimples);
+                html += gerarCardLivro(livro, disponivel, livro.media || null, livro.count || 0);
+            });
+            html += '</div>';
+            container.innerHTML = html;
+            container.querySelectorAll('.livro-card[data-titulo]').forEach(card => {
+                card.addEventListener('click', () => abrirLivro(card.dataset.titulo));
+            });
+            return;
+        }
 
         if (tipo === 'top_usuarios') {
             const clientes = await db.clientes.toArray();
@@ -696,8 +754,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h3 style="margin:0;">Livros em Destaque</h3>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button class="btn-filtro" data-tipo="top_livros"    style="background:var(--accent-color); color:#fff; border:none; padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Livros em Destaque</button>
+                        <button class="btn-filtro" data-tipo="populares"     style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Livros Populares</button>
                         <button class="btn-filtro" data-tipo="novos_livros"  style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Novos Livros</button>
-                        <button class="btn-filtro" data-tipo="top_usuarios"   style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Top Usuários</button>
+                        <button class="btn-filtro" data-tipo="top_usuarios"  style="background:var(--bg-sidebar); color:var(--text-secondary); border:1px solid var(--border-color); padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">Top Usuários</button>
                     </div>
                 </div>
                 <div id="grade-destaques"></div>
@@ -1007,11 +1066,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ================================================================
-    // FUNÇÃO PARA CRIAR POST (avaliação)
+    // FUNÇÃO PARA CRIAR POST (avaliação) – com verificação de duplicata
     // ================================================================
     async function criarPost(texto, livroId = null, nota = null) {
         try {
             await aguardarBanco();
+            // Verifica se o usuário já tem avaliação para este livro
+            if (livroId) {
+                const existente = await db.posts
+                    .where('usuario_id').equals(usuarioId)
+                    .and(p => p.livro_id === livroId)
+                    .first();
+                if (existente) {
+                    notificar('Você já avaliou este livro. Edite sua avaliação existente.', 'erro');
+                    return;
+                }
+            }
             await db.posts.add({
                 usuario_id: usuarioId,
                 livro_id: livroId,
@@ -1149,7 +1219,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.editarPost = async function(postId) {
                 const post = await db.posts.get(postId);
                 if (!post) return;
-                // Abrir modal de edição
                 const modal = document.createElement('div');
                 modal.id = 'modal-editar-post';
                 modal.style.cssText = `
@@ -1475,38 +1544,28 @@ document.addEventListener('DOMContentLoaded', () => {
     async function notificarParticipantes(debateId, usuarioQueRespondeuId, livroTitulo) {
         try {
             await aguardarBanco();
-            // Buscar o debate
             const debate = await db.debates.get(debateId);
             if (!debate) return;
 
-            // Buscar respostas existentes para pegar todos os usuários que participaram
             const respostas = await db.respostas.where('debate_id').equals(debateId).toArray();
             const participantesIds = new Set();
-            participantesIds.add(debate.usuario_id); // criador
+            participantesIds.add(debate.usuario_id);
             respostas.forEach(r => participantesIds.add(r.usuario_id));
-
-            // Remover o próprio usuário que respondeu
             participantesIds.delete(usuarioQueRespondeuId);
 
-            // Para cada participante, criar notificação
             for (const uid of participantesIds) {
-                // Verificar se o usuário ainda existe
                 const user = await db.clientes.get(uid);
                 if (!user) continue;
-
-                // Verificar se já existe notificação igual nas últimas 24h (para não spam)
                 const ultimasNotificacoes = await db.notificacoes
                     .where('usuario_id').equals(uid)
                     .and(n => n.mensagem.includes(debate.titulo) && n.tipo === 'debate')
                     .toArray();
-
                 const jaNotificado = ultimasNotificacoes.some(n => {
                     const dataNotif = new Date(n.data_criacao);
                     const agora = new Date();
                     const diffHoras = (agora - dataNotif) / (1000 * 60 * 60);
                     return diffHoras < 24;
                 });
-
                 if (!jaNotificado) {
                     await db.notificacoes.add({
                         usuario_id: uid,
@@ -1533,13 +1592,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!item) return;
                 const likes = item.likes || [];
                 if (likes.includes(usuarioId)) {
-                    // Remove like
                     item.likes = likes.filter(id => id !== usuarioId);
                 } else {
                     item.likes.push(usuarioId);
                 }
                 await db.debates.update(itemId, { likes: item.likes });
-                // Atualizar a UI do debate
                 const debateCard = document.querySelector(`[data-debate-id="${itemId}"]`);
                 if (debateCard) {
                     const likeBtn = debateCard.querySelector('.like-btn');
@@ -1563,7 +1620,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.likes.push(usuarioId);
                 }
                 await db.respostas.update(itemId, { likes: item.likes });
-                // Atualizar a UI da resposta
                 const respostaElement = document.querySelector(`[data-resposta-id="${itemId}"]`);
                 if (respostaElement) {
                     const likeBtn = respostaElement.querySelector('.like-btn');
@@ -1636,7 +1692,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     likes: []
                 });
 
-                // Notificar o próprio usuário (opcional)
                 await criarNotificacao(
                     `Você criou o debate "${titulo}" no livro "${livro.titulo}".`,
                     'debate'
@@ -1644,7 +1699,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 modal.remove();
                 notificar('Debate criado com sucesso!');
-                // Reabrir o livro para mostrar o novo debate
                 abrirLivro(livro.titulo);
             });
 
@@ -1701,12 +1755,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     likes: []
                 });
 
-                // Notificar participantes
                 await notificarParticipantes(debateId, usuarioId, livroTitulo);
 
                 modal.remove();
                 notificar('Resposta adicionada!');
-                // Reabrir o livro
                 const livro = await db.livros.get(debate.livro_id);
                 if (livro) abrirLivro(livro.titulo);
             });
@@ -1718,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ================================================================
-    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM ABAS: SOBRE | DEBATES)
+    // FUNÇÃO GLOBAL: ABRIR LIVRO (MODAL COM DETALHES + AVALIAÇÕES + DEBATES)
     // ================================================================
     window.abrirLivro = async (titulo) => {
         try {
@@ -1788,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const usuario = usuariosMap[a.usuario_id];
                     const nome = usuario ? (usuario.apelido || usuario.nome) : 'Usuário';
                     const data = new Date(a.data).toLocaleDateString('pt-BR') + ' ' +
-                                new Date(a.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                                 new Date(a.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
                     const notaStr = a.nota ? `⭐ ${a.nota}/5` : '';
                     return `
                         <div style="background: var(--bg-sidebar); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid var(--accent-color);">
@@ -1833,7 +1885,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const autorNome = autor.apelido || autor.nome || 'Usuário';
                     const autorFoto = autor.foto || 'static/src/avatares/usuario.jpg';
                     const dataDebate = new Date(debate.data_criacao).toLocaleDateString('pt-BR') + ' ' +
-                                    new Date(debate.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                                       new Date(debate.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 
                     const likesCount = (debate.likes || []).length;
                     const curtiu = (debate.likes || []).includes(usuarioId);
@@ -1843,7 +1895,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const nome = user.apelido || user.nome || 'Usuário';
                         const foto = user.foto || 'static/src/avatares/usuario.jpg';
                         const dataResp = new Date(r.data_criacao).toLocaleDateString('pt-BR') + ' ' +
-                                        new Date(r.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                                         new Date(r.data_criacao).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
                         const rLikes = (r.likes || []).length;
                         const rCurtiu = (r.likes || []).includes(usuarioId);
                         return `
@@ -1908,26 +1960,22 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             modal.innerHTML = `
-                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 24px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
+                <div style="background: var(--bg-card, #16213e); color: var(--text-primary, #fff); border-radius: 16px; max-width: 860px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid var(--border-color, #2a2a3a); position: relative;">
                     <button onclick="this.closest('#modal-detalhes-livro').remove()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary, #b0b0b0); transition: color 0.2s;">&times;</button>
-
-                    <!-- Layout duas colunas -->
-                    <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
-                        <!-- Coluna esquerda: capa + botão alugar -->
-                        <div style="flex: 0 0 180px; max-width: 180px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                    <div style="display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start;">
+                        <!-- COLUNA ESQUERDA: Capa + Botão Alugar -->
+                        <div style="flex: 0 0 180px; max-width: 180px; display: flex; flex-direction: column; gap: 12px;">
                             <img src="${capaUrl}" alt="${livro.titulo}" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: block;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:40px 0; color:var(--text-secondary);\\'>Capa não disponível</div>'">
-                            
                             ${disponivel ? `
-                                <button id="btn-alugar-deste-livro" style="background: #2ecc71; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
+                                <button id="btn-alugar-deste-livro" style="background: #2ecc71; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Alugar este livro</button>
                             ` : `
-                                <button id="btn-avise-me" style="background: #f39c12; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Avise-me quando disponível</button>
-                                <p style="margin-top: 4px; color: #e74c3c; text-align:center; font-size:0.8rem;">Indisponível</p>
+                                <button id="btn-avise-me" style="background: #f39c12; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s;">Avise-me quando disponível</button>
+                                <p style="margin-top: 4px; color: #e74c3c; text-align:center; font-size:0.85rem;">Este livro não está disponível no momento.</p>
                             `}
                         </div>
-
-                        <!-- Coluna direita: informações + abas -->
-                        <div style="flex: 1; min-width: 200px;">
-                            <h2 style="margin: 0 0 8px 0; font-size: 1.6rem; color: var(--text-primary, #fff);">${livro.titulo}</h2>
+                        <!-- COLUNA DIREITA: Informações + Abas -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <h2 style="margin: 0 0 6px 0; font-size: 1.6rem; color: var(--text-primary, #fff);">${livro.titulo}</h2>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Autor:</strong> ${livro.autor}</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Editora:</strong> ${livro.editora} (${livro.ano})</p>
                             <p style="margin: 0 0 4px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Gênero:</strong> ${livro.genero || 'Não informado'}</p>
@@ -1935,30 +1983,29 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p style="margin: 0 0 12px 0; color: var(--text-secondary, #b0b0b0); font-size: 1rem;"><strong>Status:</strong> <span style="color: ${disponivel ? '#2ecc71' : '#e74c3c'}; font-weight:600;">${disponivel ? 'Disponível' : 'Indisponível'}</span></p>
 
                             <!-- Abas -->
-                            <div class="tabs" style="margin-top: 12px;">
-                                <button class="tab-btn active" data-tab="sobre">Sobre</button>
-                                <button class="tab-btn" data-tab="debates">Debates</button>
+                            <div class="tabs" style="display:flex; gap:0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
+                                <button class="tab-btn active" data-tab="sobre" style="background:transparent; color:var(--text-secondary); border:none; padding:8px 20px; font-size:0.95rem; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">Sobre</button>
+                                <button class="tab-btn" data-tab="debates" style="background:transparent; color:var(--text-secondary); border:none; padding:8px 20px; font-size:0.95rem; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">Debates</button>
                             </div>
 
                             <!-- Painel Sobre -->
-                            <div class="tab-panel active" id="tab-sobre">
+                            <div id="tab-sobre" class="tab-panel active" style="display:block;">
                                 <p style="margin: 0 0 12px 0; color: var(--text-primary, #fff); font-size: 0.95rem; line-height: 1.6;"><strong>Sinopse:</strong><br>${livro.sinopse || 'Sinopse não disponível.'}</p>
-                                
-                                <div>
-                                    <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Avaliações</h4>
-                                    <div style="max-height: 200px; overflow-y: auto; padding-right: 6px;">
+                                <div style="margin-top:12px;">
+                                    <h4 style="margin:0 0 8px 0; color:var(--text-primary); font-size:1.1rem;">Avaliações</h4>
+                                    <div style="max-height:180px; overflow-y:auto; padding-right:6px;">
                                         ${avaliacoesHtml}
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Painel Debates -->
-                            <div class="tab-panel" id="tab-debates">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                    <h4 style="margin: 0; color: var(--text-primary, #fff); font-size: 1.1rem;">Debates</h4>
-                                    <button onclick="criarDebate(${livro.id})" style="background: var(--accent-color); color: #fff; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size:0.8rem;">+ Criar Debate</button>
+                            <div id="tab-debates" class="tab-panel" style="display:none;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                    <h4 style="margin:0; color:var(--text-primary); font-size:1.1rem;">Debates</h4>
+                                    <button onclick="criarDebate(${livro.id})" style="background:var(--accent-color); color:#fff; border:none; padding:4px 14px; border-radius:6px; cursor:pointer; font-size:0.8rem;">+ Criar Debate</button>
                                 </div>
-                                <div style="max-height: 300px; overflow-y: auto; padding-right: 6px;">
+                                <div style="max-height:280px; overflow-y:auto; padding-right:6px;">
                                     ${debatesHtml}
                                 </div>
                             </div>
@@ -1970,7 +2017,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(modal);
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-            // --- Eventos das abas ---
+            // Lógica das abas
             const tabBtns = modal.querySelectorAll('.tab-btn');
             const tabPanels = {
                 sobre: modal.querySelector('#tab-sobre'),
@@ -1978,17 +2025,23 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             tabBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    tabBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    const tab = btn.dataset.tab;
+                btn.addEventListener('click', function() {
+                    tabBtns.forEach(b => {
+                        b.classList.remove('active');
+                        b.style.color = 'var(--text-secondary)';
+                        b.style.borderBottom = '2px solid transparent';
+                    });
+                    this.classList.add('active');
+                    this.style.color = 'var(--accent-color)';
+                    this.style.borderBottom = `2px solid var(--accent-color)`;
+                    const tab = this.dataset.tab;
                     Object.keys(tabPanels).forEach(key => {
-                        tabPanels[key].classList.toggle('active', key === tab);
+                        tabPanels[key].style.display = key === tab ? 'block' : 'none';
                     });
                 });
             });
 
-            // --- Eventos dos botões de alugar / avise-me ---
+            // Eventos dos botões
             const btnAlugar = document.getElementById('btn-alugar-deste-livro');
             if (btnAlugar) {
                 btnAlugar.addEventListener('click', () => {
@@ -2015,21 +2068,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 style.id = 'style-modal-fade';
                 style.textContent = `@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`;
                 document.head.appendChild(style);
-            }
-
-            // Adicionar estilos das abas (já devem estar no CSS, mas caso não, adicionamos inline)
-            const styleTabs = document.createElement('style');
-            styleTabs.textContent = `
-                .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
-                .tab-btn { background: transparent; color: var(--text-secondary); border: none; padding: 8px 20px; font-size: 0.95rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
-                .tab-btn:hover { color: var(--text-primary); }
-                .tab-btn.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
-                .tab-panel { display: none; }
-                .tab-panel.active { display: block; }
-            `;
-            if (!document.getElementById('style-tabs')) {
-                styleTabs.id = 'style-tabs';
-                document.head.appendChild(styleTabs);
             }
 
         } catch (err) {
