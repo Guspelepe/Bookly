@@ -546,7 +546,7 @@ button.perigo:hover {
 
 .sidebar-nav #logout-btn {
     border-top: 1px solid var(--border-color);
-    border-radius: 0 !important;  /* força sem curvatura */
+    border-radius: 0 !important;
     margin-top: 30px;
     padding-top: 16px;
 }

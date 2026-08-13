@@ -80,10 +80,6 @@ function validarCPF(cpf) {
     return true;
 }
 
-/**
- * Converte string de data (ISO yyyy-mm-dd ou brasileiro dd/mm/aaaa) para objeto Date.
- * Retorna null se a data for inválida.
- */
 function parseData(str) {
     if (!str) return null;
     if (str.includes('-') && str.length === 10) {
@@ -101,10 +97,10 @@ function parseData(str) {
 }
 
 /**
- * Exibe modal de multa com créditos da equipe.
+ *
  * @param {number} diasAtraso
  * @param {number} multa
- * @returns {Promise<boolean>} true se confirmado, false se cancelado
+ * @returns {Promise<boolean>}
  */
 function exibirModalMulta(diasAtraso, multa) {
     return new Promise((resolve) => {
@@ -189,13 +185,12 @@ function exibirModalMulta(diasAtraso, multa) {
 
             // Eventos da segunda tela
             document.getElementById('btn-confirmar-devolucao').onclick = () => { modal.remove(); resolve(true); };
-            document.getElementById('btn-voltar').onclick = renderizarTelaMulta; // Agora ele volta de verdade para a tela anterior
+            document.getElementById('btn-voltar').onclick = renderizarTelaMulta; 
             
              configurarBotaoHover('btn-confirmar-devolucao', '#10b981', '#059669');
              configurarBotaoHover('btn-voltar', 'transparent', '#f8fafc');
         };
 
-        // Helper para gerar as linhas dos desenvolvedores de forma elegante
         const renderizarLinhaDev = (nome, github) => `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9;">
                 <span style="font-weight: 500; color: #334155; font-size: 14px;">${nome}</span>
@@ -221,12 +216,11 @@ function exibirModalMulta(diasAtraso, multa) {
 }
 
 /**
- * Exibe modal de confirmação de devolução normal (Sem atraso / Sem multa).
- * @returns {Promise<boolean>} true se confirmado, false se cancelado
+ * 
+ * @returns {Promise<boolean>} 
  */
 function exibirModalDevolucaoNormal() {
     return new Promise((resolve) => {
-        // Remove modal anterior se existir para evitar duplicidade
         const existente = document.getElementById('modal-devolucao-normal');
         if (existente) existente.remove();
 
@@ -334,18 +328,10 @@ function exibirModalDevolucaoNormal() {
     });
 }
 
-/**
- * Realiza logout limpando a sessão e redirecionando para index.html
- */
 function logout() {
     sessionStorage.clear();
     window.location.href = 'index.html';
 }
-
-/**
- * Valida se uma URL tem extensão de imagem conhecida.
- * Retorna true se for válida, false caso contrário.
- */
 function validarURLImagem(url) {
     if (!url || url.trim() === '') return false; // campo vazio é permitido (placeholder será usado)
     const extensoes = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;

@@ -1,5 +1,5 @@
 ﻿// ==========================================
-// db.js – Configuração do Dexie (global)
+// db.js – Configuração do Dexie 
 // ==========================================
 
 window.db = new Dexie('BibliotecaDB');
@@ -23,7 +23,7 @@ db.version(14).stores({
 
 
 // ==========================================
-// 1. LISTA DE LIVROS (atualizada – apenas os que você enviou)
+// 1. LISTA DE LIVROS 
 // ==========================================
 const LIVROS_INICIAIS = [
     { titulo: "1984 - George Orwell", autor: "George Orwell", ano: 1949, editora: "Companhia das Letras", genero: "ficção distópica", classificacao: "14+", sinopse: "1984, escrito por George Orwell e publicado em 1949, é uma distopia sobre a Oceânia, um superestado totalitário liderado pelo 'Grande Irmão'." },
@@ -187,7 +187,7 @@ const USUARIOS_FIXOS = [
 ];
 
 // ==========================================
-// 4. TÍTULOS POPULARES e COMENTÁRIOS (para avaliações)
+// 4. TÍTULOS POPULARES e COMENTÁRIOS
 // ==========================================
 const TITULOS_POPULARES = [
     'Berserk vol. 32', 'One Piece vol. 100', 'Attack on Titan vol. 1', 
@@ -283,11 +283,9 @@ async function migrarCapa() {
 }
 
 // ==========================================
-// FUNÇÃO DE SINCRONIZAÇÃO DE LIVROS (adiciona novos e remove os que saíram)
+// FUNÇÃO DE SINCRONIZAÇÃO DE LIVROS 
 // ==========================================
-// ==========================================
-// FUNÇÃO DE SINCRONIZAÇÃO DE LIVROS (apenas adiciona, NÃO remove)
-// ==========================================
+
 async function sincronizarLivros() {
     try {
         const livrosExistentes = await db.livros.toArray();
@@ -305,20 +303,13 @@ async function sincronizarLivros() {
             console.warn(` ${adicionados} novos livros adicionados.`);
         }
 
-        // ==========================================
-        // A REMOÇÃO DE LIVROS FOI REMOVIDA PARA SEGURANÇA.
-        // Livros adicionados manualmente (pelo admin)
-        // NUNCA serão removidos automaticamente.
-        // Para excluir um livro, use a interface "Editar Livros".
-        // ==========================================
-
     } catch (err) {
         console.error(' Erro ao sincronizar livros:', err);
     }
 }
 
 // ==========================================
-// 5. FUNÇÃO DE SEED (usuários fixos + avaliações)
+// 5. FUNÇÃO DE SEED 
 // ==========================================
 async function seedDatabase() {
     try {
@@ -422,7 +413,7 @@ db.on('ready', async () => {
             console.warn(` Já existem ${countLivros} livros.`);
             await migrarLivros();
             await sincronizarLivros();
-            await migrarCapa();  // <-- garante o campo capa
+            await migrarCapa(); 
         }
 
         // 2. Cliente padrão

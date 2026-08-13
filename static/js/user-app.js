@@ -1,13 +1,10 @@
 ﻿// ============================================================
-// user-app.js – Painel do usuário (com carrossel, posts, debates)
+// user-app.js – Painel do usuário 
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('User app iniciado.');
 
-    // ----------------------------------------------------------
-    // CONSTANTES & CONFIGURAÇÕES
-    // ----------------------------------------------------------
     const MULTA_POR_DIA = 1.00;
 
     // ----------------------------------------------------------

@@ -73,7 +73,7 @@ body {
 }
 
 /* ========================================
-   COLUNA DO FORMULÁRIO (com logo)
+   COLUNA DO FORMULÁRIO 
    ======================================== */
 .col-form {
     flex: 1;
@@ -98,7 +98,7 @@ body {
 }
 
 /* ========================================
-   CAIXA DE LOGIN (branca com glassmorphism)
+   CAIXA DE LOGIN 
    ======================================== */
 .card {
     background: rgba(255, 255, 255, 0.96);
@@ -282,7 +282,7 @@ form {
 #erro.visible { display: block; }
 
 /* ========================================
-   MODAL (registro)
+   MODAL 
    ======================================== */
 .modal-overlay {
     display: none;
@@ -472,7 +472,7 @@ form {
 }
 
 /* ========================================
-   FOOTER (LANDING)
+   FOOTER 
    ======================================== */
 .site-footer {
     background: rgba(0, 0, 0, 0.7);

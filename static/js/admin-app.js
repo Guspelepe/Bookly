@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// admin-app.js – Painel do bibliotecário (login obrigatório)
+// admin-app.js – Painel do bibliotecário 
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // RENDERIZAÇÕES
     // ================================================================
 
-    // 1. USUÁRIOS (com barra de pesquisa)
+    // 1. USUÁRIOS 
     async function renderUsuarios() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -340,11 +340,11 @@ document.addEventListener('DOMContentLoaded', function() {
         contentArea.innerHTML = html;
     }
 
-    // 3. CATÁLOGO (ordenado por mais recentes)
+    // 3. CATÁLOGO
     async function renderCatalogo() {
         await aguardarBanco();
         const livros = await db.livros.toArray();
-        livros.sort((a, b) => b.id - a.id); // mais recentes primeiro
+        livros.sort((a, b) => b.id - a.id); 
 
         let html = `
             <div class="card">
@@ -561,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ================================================================
-    // EDITAR LIVROS (modal) – corrigido para tema escuro
+    // EDITAR LIVROS 
     // ================================================================
     window.abrirModalEditarLivro = async function(id) {
         const livro = await db.livros.get(id);
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCatalogo();
     };
 
-    // 5. ALUGAR (com notificação para o usuário)
+    // 5. ALUGAR 
     async function renderAlugar() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -791,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 6. DEVOLVER (com notificação para o usuário e aviso de disponibilidade)
+    // 6. DEVOLVER 
     async function renderDevolver() {
         await aguardarBanco();
         const clientes = await db.clientes.toArray();
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ================================================================
-    // 7. SOLICITAÇÕES (unificadas: livros + aluguel/devolução)
+    // 7. SOLICITAÇÕES 
     // ================================================================
     async function renderSolicitacoes() {
         await aguardarBanco();
@@ -1052,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS (sugestões) =====
+    // ===== FUNÇÕES PARA SOLICITAÇÕES DE LIVROS =====
     window.verDetalhesSolicitacao = async function(id) {
         const solicitacao = await db.solicitacoes.get(id);
         if (!solicitacao) return;

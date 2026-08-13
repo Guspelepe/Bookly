@@ -1,10 +1,10 @@
 ﻿// ============================================================
-// landing.js – Página de login e registro (com carrossel)
+// landing.js – Página de login e registro
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ===== VERIFICA SESSÃO IMEDIATAMENTE (Evita processamento desnecessário) =====
+    // ===== VERIFICA SESSÃO IMEDIATAMENTE =====
     if (sessionStorage.getItem('logado') === 'true') {
         const perfil = sessionStorage.getItem('perfil');
         if (perfil === 'bibliotecario') {
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (perfil === 'usuario') {
             window.location.href = 'user.html';
         }
-        return; // Encerra a execução do script aqui
+        return; 
     }
 
     // ==========================================
@@ -109,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Instancia os elementos do DOM
     const formLogin = document.getElementById('login-form');
     const erroLogin = document.getElementById('erro');
     const btnAbrirRegistro = document.getElementById('btn-abrir-registro');
@@ -118,12 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const erroRegistro = document.getElementById('erro-registro');
     const btnFecharRegistro = document.getElementById('btn-fechar-registro');
 
-    // Inicializa efeitos visuais da esquerda
     iniciarCarrosselImagens();
     iniciarCarrosselFrases();
 
     // ==========================================
-    // 3. INTERFACES DE UI INTERNAS (Senhas e Máscara)
+    // 3. INTERFACES DE UI INTERNAS 
     // ==========================================
     
     // Gerenciador reutilizável para exibição de senhas
@@ -141,14 +139,13 @@ document.addEventListener('DOMContentLoaded', function() {
     configurarToggleSenha('toggle-senha-login', 'senha');
     configurarToggleSenha('toggle-senha-registro', 'reg-senha');
 
-    // Máscara reativa de CPF no Registro (Substitui o oninput antigo)
+    // Máscara reativa de CPF no Registro 
     const inputCpf = document.getElementById('reg-cpf');
     if (inputCpf) {
         inputCpf.addEventListener('input', function() {
             if (typeof mascararCPF === 'function') {
-                mascararCPF(this); // Executa a função global do utils.js
+                mascararCPF(this); 
             } else {
-                // Fallback de segurança caso utils não carregue
                 let v = this.value.replace(/\D/g, '');
                 if (v.length > 11) v = v.slice(0, 11);
                 v = v.replace(/(\d{3})(\d)/, '$1.$2')
